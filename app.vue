@@ -1,17 +1,28 @@
 <template>
-  <div>
+  <div class="app-layout">
     <header class="site-header">
-      <div class="container">
-        <NuxtLink to="/" class="brand"><span class="brand-dot" />MTG Stats</NuxtLink>
+      <div class="container header-container">
+        <NuxtLink to="/" class="brand">
+          <span class="brand-dot" />
+          <span>MTG Stats</span>
+        </NuxtLink>
         <nav class="nav">
           <NuxtLink to="/">Boosters</NuxtLink>
           <NuxtLink to="/admin">Admin</NuxtLink>
         </nav>
       </div>
     </header>
-    <main class="container">
-      <NuxtPage />
+
+    <main class="main-content">
+      <div class="container">
+        <NuxtPage />
+      </div>
     </main>
-    <footer>MTG Stats : suivi mensuel des prix des boosters scellés (marché européen)</footer>
+
+    <footer class="site-footer">
+      <div class="container footer-container">
+        <p>MTG Stats · Suivi mensuel des prix des boosters scellés Magic: The Gathering (marché européen)</p>
+      </div>
+    </footer>
   </div>
 </template>

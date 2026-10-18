@@ -11,7 +11,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
-    "import:cardmarket": "tsx scripts/import-cardmarket.ts"
+    "import:cardmarket": "tsx scripts/import-cardmarket.ts",
+    "sync:sheet": "tsx scripts/run-sync-sheet.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

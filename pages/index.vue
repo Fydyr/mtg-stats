@@ -59,7 +59,9 @@ useHead({ title: 'MTG Stats : prix des boosters scellés Magic' })
 <template>
   <section class="hero">
     <h1>Prix des boosters scellés</h1>
-    <p>Suivi mensuel des boîtes de boosters Magic: The Gathering. Données de {{ monthLabel(data?.month ?? null) }}. Suivez les tendances sur plusieurs mois plutôt que sur un seul relevé.</p>
+    <p>
+      Suivi mensuel des boîtes de boosters Magic: The Gathering.<span v-if="data?.month"> Données de {{ monthLabel(data.month) }}.</span> Suivez les tendances sur plusieurs mois plutôt que sur un seul relevé.
+    </p>
   </section>
 
   <section class="stats">
@@ -91,28 +93,58 @@ useHead({ title: 'MTG Stats : prix des boosters scellés Magic' })
     <table>
       <thead>
         <tr>
-          <th @click="sortBy('name')">Édition</th>
-          <th @click="sortBy('type')">Type</th>
-          <th @click="sortBy('releaseDate')">Sortie</th>
-          <th class="num" @click="sortBy('price')">Prix</th>
-          <th class="num" @click="sortBy('var1m')">1 mois</th>
-          <th class="num" @click="sortBy('var3m')">3 mois</th>
-          <th class="num" @click="sortBy('var6m')">6 mois</th>
-          <th>Achat</th>
+          <th @click="sortBy('name')">
+            Édition <span v-if="sortKey === 'name'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+          </th>
+          <th style="width: 110px;" @click="sortBy('type')">
+            Type <span v-if="sortKey === 'type'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+          </th>
+          <th style="width: 105px;" @click="sortBy('releaseDate')">
+            Sortie <span v-if="sortKey === 'releaseDate'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+          </th>
+          <th class="num" style="width: 115px;" @click="sortBy('price')">
+            Prix <span v-if="sortKey === 'price'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+          </th>
+          <th class="num" style="width: 110px;" @click="sortBy('var1m')">
+            1 mois <span v-if="sortKey === 'var1m'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+          </th>
+          <th class="num" style="width: 110px;" @click="sortBy('var3m')">
+            3 mois <span v-if="sortKey === 'var3m'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+          </th>
+          <th class="num" style="width: 110px;" @click="sortBy('var6m')">
+            6 mois <span v-if="sortKey === 'var6m'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+          </th>
+          <th style="width: 125px; text-align: center;">Achat</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="r in rows" :key="r.id">
-          <td class="name-cell"><NuxtLink class="name" :to="`/products/${r.id}`">{{ r.name }}</NuxtLink></td>
-          <td><span class="badge">{{ r.type }}</span></td>
+          <td class="name-cell">
+            <NuxtLink class="name" :to="`/products/${r.id}`">{{ r.name }}</NuxtLink>
+          </td>
+          <td>
+            <span class="badge" :class="`badge-${r.type.toLowerCase()}`">{{ r.type }}</span>
+          </td>
           <td class="muted">{{ year(r.releaseDate) }}</td>
-          <td class="num">{{ eur(r.price) }}</td>
-          <td class="num" :class="cls(r.var1m)">{{ pct(r.var1m) }}</td>
-          <td class="num" :class="cls(r.var3m)">{{ pct(r.var3m) }}</td>
-          <td class="num" :class="cls(r.var6m)">{{ pct(r.var6m) }}</td>
-          <td><a class="cm-link" :href="r.cardmarket" target="_blank" rel="noopener noreferrer" :title="`Voir ${r.name} sur Cardmarket`">Cardmarket</a></td>
+          <td class="num" style="font-weight: 700; font-size: 0.95rem;">{{ eur(r.price) }}</td>
+          <td class="num">
+            <span class="tag-var" :class="cls(r.var1m)">{{ pct(r.var1m) }}</span>
+          </td>
+          <td class="num">
+            <span class="tag-var" :class="cls(r.var3m)">{{ pct(r.var3m) }}</span>
+          </td>
+          <td class="num">
+            <span class="tag-var" :class="cls(r.var6m)">{{ pct(r.var6m) }}</span>
+          </td>
+          <td style="text-align: center;">
+            <a class="cm-link" :href="r.cardmarket" target="_blank" rel="noopener noreferrer" :title="`Voir ${r.name} sur Cardmarket`">
+              Cardmarket ↗
+            </a>
+          </td>
         </tr>
-        <tr v-if="!rows.length"><td colspan="8" class="muted" style="text-align:center;padding:40px">Aucun résultat</td></tr>
+        <tr v-if="!rows.length">
+          <td colspan="8" class="muted" style="text-align:center; padding:40px;">Aucun résultat</td>
+        </tr>
       </tbody>
     </table>
   </div>

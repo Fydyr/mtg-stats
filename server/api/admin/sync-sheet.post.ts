@@ -8,31 +8,58 @@ const DEFAULT_SHEETS = [
   { gid: '2026919664', type: BoosterType.COLLECTOR }
 ]
 
-function parseCsv(text: string): string[][] {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim())
-  return lines.map((line) => {
-    const out: string[] = []
-    let cur = ''
-    let quoted = false
-    for (const ch of line) {
-      if (ch === '"') quoted = !quoted
-      else if (ch === ',' && !quoted) {
-        out.push(cur.trim())
-        cur = ''
-      } else cur += ch
+function parseFullCsv(text: string): string[][] {
+  const rows: string[][] = []
+  let currentRow: string[] = []
+  let currentCell = ''
+  let inQuotes = false
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    const next = text[i + 1]
+
+    if (ch === '"') {
+      if (inQuotes && next === '"') {
+        currentCell += '"'
+        i++
+      } else {
+        inQuotes = !inQuotes
+      }
+    } else if (ch === ',' && !inQuotes) {
+      currentRow.push(currentCell.trim())
+      currentCell = ''
+    } else if ((ch === '\r' || ch === '\n') && !inQuotes) {
+      if (ch === '\r' && next === '\n') {
+        i++
+      }
+      currentRow.push(currentCell.trim())
+      if (currentRow.some((c) => c !== '')) {
+        rows.push(currentRow)
+      }
+      currentRow = []
+      currentCell = ''
+    } else {
+      currentCell += ch
     }
-    out.push(cur.trim())
-    return out
-  })
+  }
+
+  if (currentCell !== '' || currentRow.length > 0) {
+    currentRow.push(currentCell.trim())
+    if (currentRow.some((c) => c !== '')) {
+      rows.push(currentRow)
+    }
+  }
+
+  return rows
 }
 
 // Convertit un en-tête de date comme "07/2026", "2026-07" ou "Price 07/2026" en "YYYY-MM"
 function parseMonthHeader(header: string): string | null {
   const clean = header.replace(/^Price\s+/i, '').trim()
-  const m1 = clean.match(/^(\d{2})\/(\d{4})$/)
-  if (m1) return `${m1[2]}-${m1[1]}`
-  const m2 = clean.match(/^(\d{4})-(\d{2})$/)
-  if (m2) return `${m2[1]}-${m2[2]}`
+  const m1 = clean.match(/^(\d{1,2})\/(\d{4})$/)
+  if (m1) return `${m1[2]}-${m1[1].padStart(2, '0')}`
+  const m2 = clean.match(/^(\d{4})-(\d{1,2})$/)
+  if (m2) return `${m2[1]}-${m2[2].padStart(2, '0')}`
   return null
 }
 
@@ -61,7 +88,7 @@ export default defineEventHandler(async (event) => {
       continue
     }
 
-    const rows = parseCsv(csvText)
+    const rows = parseFullCsv(csvText)
     if (rows.length < 2) continue
 
     const header = rows[0]!
@@ -71,7 +98,16 @@ export default defineEventHandler(async (event) => {
 
     for (const row of rows.slice(1)) {
       const name = row[0]?.trim()
-      if (!name || name === '#DIV/0!' || name.startsWith('EDITION')) continue
+      if (
+        !name ||
+        name.length < 2 ||
+        name.startsWith('#') ||
+        name.startsWith('EDITION') ||
+        name.toLowerCase().startsWith('total') ||
+        name.toLowerCase().startsWith('moyenne')
+      ) {
+        continue
+      }
 
       const rawDate = row[2]?.trim()
       let releaseDate: Date | null = null

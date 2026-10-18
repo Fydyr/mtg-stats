@@ -462,24 +462,29 @@ useHead({ title: 'Admin | MTG Stats', meta: [{ name: 'robots', content: 'noindex
 
     <!-- Tableau de saisie -->
     <div class="card table-wrap">
-      <div v-if="loading" style="text-align:center; padding:30px; color:var(--muted);">Chargement des boîtes...</div>
+      <div v-if="loading" style="text-align:center; padding:40px; color:var(--muted);">Chargement des boîtes...</div>
       <table v-else>
         <thead>
           <tr>
-            <th>Édition</th>
-            <th>Type</th>
-            <th class="num">Mois précédent</th>
-            <th class="num">Prix (€)</th>
-            <th class="num">Variation</th>
-            <th>Lien Cardmarket</th>
-            <th style="text-align:center;">Action</th>
+            <th style="min-width: 220px;">Édition</th>
+            <th style="width: 120px;">Type</th>
+            <th class="num" style="width: 120px;">Mois précédent</th>
+            <th class="num" style="width: 130px;">Prix (€)</th>
+            <th class="num" style="width: 110px;">Variation</th>
+            <th style="width: 170px;">Cardmarket</th>
+            <th style="width: 60px; text-align: center;">Action</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="r in filteredRows" :key="r.id">
-            <td style="font-weight:600; min-width:160px;">{{ r.name }}</td>
+            <!-- Édition -->
+            <td style="font-weight: 600;">
+              {{ r.name }}
+            </td>
+
+            <!-- Type -->
             <td>
-              <select v-model="r.type" class="input" style="padding:4px 8px; font-size:0.75rem;">
+              <select v-model="r.type" class="input" style="padding: 5px 8px; font-size: 0.78rem; width: 100%;">
                 <option value="DRAFT">DRAFT</option>
                 <option value="SET">SET</option>
                 <option value="PLAY">PLAY</option>
@@ -487,29 +492,70 @@ useHead({ title: 'Admin | MTG Stats', meta: [{ name: 'robots', content: 'noindex
                 <option value="OTHER">AUTRES</option>
               </select>
             </td>
-            <td class="num muted">{{ r.previous ?? '-' }}</td>
-            <td class="num"><input v-model="r.value" class="input admin-input" inputmode="decimal" placeholder="—" /></td>
-            <td class="num" :class="diff(r) == null ? 'muted' : diff(r)! >= 0 ? 'up' : 'down'">
-              {{ diff(r) == null ? '-' : (diff(r)! > 0 ? '+' : '') + diff(r)!.toFixed(2).replace('.', ',') + ' %' }}
+
+            <!-- Mois précédent -->
+            <td class="num muted" style="font-weight: 500;">
+              {{ r.previous != null && !isNaN(r.previous) ? r.previous + ' €' : '-' }}
             </td>
-            <td style="white-space:nowrap">
-              <input v-model="r.cardmarketUrl" class="input" style="min-width:220px;" placeholder="URL directe ou vide (auto)" />
-              <a class="cm-link" :href="searchUrl(r.name, r.type)" target="_blank" rel="noopener noreferrer" style="margin-left:6px">Chercher</a>
+
+            <!-- Prix du mois avec symbole € intégré sans couper l'input -->
+            <td class="num">
+              <div style="display: inline-flex; align-items: center; gap: 4px; justify-content: flex-end;">
+                <input
+                  v-model="r.value"
+                  class="input admin-input"
+                  inputmode="decimal"
+                  placeholder="—"
+                  style="width: 82px; padding: 6px 8px; text-align: right; font-weight: 600;"
+                />
+                <span style="font-size: 0.85rem; color: var(--muted); font-weight: 600;">€</span>
+              </div>
             </td>
-            <td style="text-align:center;">
+
+            <!-- Variation -->
+            <td class="num">
+              <span class="tag-var" :class="diff(r) == null ? 'muted' : diff(r)! >= 0 ? 'up' : 'down'">
+                {{ diff(r) == null ? '-' : (diff(r)! > 0 ? '+' : '') + diff(r)!.toFixed(1).replace('.', ',') + ' %' }}
+              </span>
+            </td>
+
+            <!-- Cardmarket -->
+            <td>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <a
+                  class="cm-link"
+                  :href="r.cardmarketUrl || searchUrl(r.name, r.type)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style="font-size: 0.75rem; padding: 4px 8px;"
+                >
+                  Voir ↗
+                </a>
+                <input
+                  v-model="r.cardmarketUrl"
+                  class="input"
+                  style="padding: 4px 6px; font-size: 0.75rem; width: 95px;"
+                  placeholder="URL manuelle"
+                  title="URL directe optionnelle si différente"
+                />
+              </div>
+            </td>
+
+            <!-- Action de suppression -->
+            <td style="text-align: center;">
               <button
                 class="btn ghost"
-                style="padding:4px 8px; font-size:0.75rem; border-color:rgba(229,96,79,0.4); color:var(--down);"
+                style="padding: 4px 8px; font-size: 0.75rem; border-color: transparent; color: var(--down);"
                 title="Supprimer cette boîte"
                 @click="deleteProduct(r.id, r.name)"
               >
-                Supprimer
+                ✕
               </button>
             </td>
           </tr>
           <tr v-if="!filteredRows.length">
-            <td colspan="7" class="muted" style="text-align:center; padding:30px;">
-              Aucune boîte trouvée. Cliquez sur <strong>"Synchroniser depuis le Google Sheet"</strong> ou ajoutez-en une manuellement !
+            <td colspan="7" class="muted" style="text-align: center; padding: 40px;">
+              Aucune boîte trouvée. Cliquez sur <strong>"Synchroniser Cardmarket"</strong> ou <strong>"Synchroniser depuis le Google Sheet"</strong> !
             </td>
           </tr>
         </tbody>
