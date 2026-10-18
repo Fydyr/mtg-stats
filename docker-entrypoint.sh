@@ -10,10 +10,10 @@ until pg_isready -h postgres -p 5432 -U "${POSTGRES_USER:-postgres}" 2>/dev/null
 done
 echo "[Setup] PostgreSQL ready"
 
-# -- Prisma migrations ---------------------------------------------
-echo "[Setup] Applying Prisma migrations..."
-prisma migrate deploy 2>&1
-echo "[Setup] Migrations done"
+# -- Sync database schema (automatique sans migrations manuelles) --
+echo "[Setup] Synchronisation automatique du schéma Prisma..."
+prisma db push --skip-generate
+echo "[Setup] Base de données synchronisée"
 
 # -- Seed (upsert : sans risque sur des données existantes) --------
 echo "[Setup] Running seed..."
