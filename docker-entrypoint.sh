@@ -12,7 +12,7 @@ echo "[Setup] PostgreSQL ready"
 
 # -- Sync database schema (automatique sans migrations manuelles) --
 echo "[Setup] Synchronisation automatique du schéma Prisma..."
-prisma db push --skip-generate
+prisma db push --skip-generate --accept-data-loss
 echo "[Setup] Base de données synchronisée"
 
 # -- Seed (upsert : sans risque sur des données existantes) --------
