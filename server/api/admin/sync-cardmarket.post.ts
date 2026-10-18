@@ -60,125 +60,16 @@ export default defineEventHandler(async (event) => {
   requireAdmin(event)
 
   const body = await readBody<{ month?: string; priceField?: 'trend' | 'low' | 'avg' }>(event).catch(() => ({}))
-  const targetMonth = body?.month && /^\d{4}-\d{2}$/.test(body.month) ? body.month : new Date().toISOString().slice(0, 7)
+  const targetMonth = body?.month && /^\d{4}-\d{2}$/.test(body.month) ? body.month : undefined
   const priceFieldChoice = body?.priceField || 'trend'
 
-  console.log(`[Cardmarket Sync] Démarrage synchro S3 pour le mois ${targetMonth} (${priceFieldChoice})...`)
-
-  // Téléchargement direct depuis le CDN public Cardmarket S3
-  const [prodsData, pricesData] = await Promise.all([
-    $fetch<{ version: string; products: CmProduct[] }>(
-      'https://downloads.s3.cardmarket.com/productCatalog/productList/products_nonsingles_1.json'
-    ),
-    $fetch<{ version: string; priceGuides: CmPriceGuide[] }>(
-      'https://downloads.s3.cardmarket.com/productCatalog/priceGuide/price_guide_1.json'
-    )
-  ])
-
-  if (!prodsData?.products || !pricesData?.priceGuides) {
-    throw createError({ statusCode: 502, statusMessage: 'Réponse invalide du CDN Cardmarket S3' })
-  }
-
-  const JUNK_KEYWORDS = [
-    'theme deck',
-    'intro pack',
-    'tournament pack',
-    'event deck',
-    'gift box',
-    'holiday',
-    'battle pack',
-    'prerelease',
-    'guild kit',
-    'toolkit',
-    'mythic edition',
-    'faction pack',
-    'preconstructed'
-  ]
-
-  // Filtrer uniquement les vraies boîtes de boosters (Catégorie 7 Magic Display sans les packs thématiques/cadeaux)
-  const boxes = prodsData.products.filter((p) => {
-    if (p.idCategory !== 7) return false
-    const n = p.name.toLowerCase()
-    return !JUNK_KEYWORDS.some((j) => n.includes(j))
-  })
-
-  // Map des prix par idProduct
-  const priceMap = new Map<number, CmPriceGuide>()
-  for (const pr of pricesData.priceGuides) {
-    priceMap.set(pr.idProduct, pr)
-  }
-
-  let totalProducts = 0
-  let totalPrices = 0
-
-  for (const box of boxes) {
-    const rawName = box.name.trim()
-    if (!rawName) continue
-
-    const { editionName, type } = parseBoosterBoxName(rawName)
-
-    // Upsert du produit avec cardmarketId (cardmarketUrl reste optionnel et calculé dynamiquement)
-    const existing = await prisma.product.findFirst({
-      where: {
-        OR: [
-          { cardmarketId: box.idProduct },
-          { name: editionName, type }
-        ]
-      }
+  try {
+    return await syncCardmarketData(targetMonth, priceFieldChoice)
+  } catch (err: any) {
+    throw createError({
+      statusCode: 502,
+      statusMessage: err?.message || 'Erreur lors de la synchronisation Cardmarket'
     })
-
-    let product
-    if (existing) {
-      product = await prisma.product.update({
-        where: { id: existing.id },
-        data: {
-          cardmarketId: box.idProduct,
-          type: existing.type || type
-        }
-      })
-    } else {
-      product = await prisma.product.create({
-        data: {
-          name: editionName,
-          type,
-          cardmarketId: box.idProduct
-        }
-      })
-    }
-    totalProducts++
-
-    // Enregistrement du prix
-    const pg = priceMap.get(box.idProduct)
-    if (pg) {
-      let chosenPrice: number | null = null
-      if (priceFieldChoice === 'low' && pg.low && pg.low > 0) chosenPrice = pg.low
-      else if (priceFieldChoice === 'avg' && pg.avg && pg.avg > 0) chosenPrice = pg.avg
-      else if (pg.trend && pg.trend > 0) chosenPrice = pg.trend
-
-      // Fallback
-      if (!chosenPrice || chosenPrice <= 0) {
-        if (pg.trend && pg.trend > 0) chosenPrice = pg.trend
-        else if (pg.low && pg.low > 0) chosenPrice = pg.low
-        else if (pg.avg && pg.avg > 0) chosenPrice = pg.avg
-      }
-
-      if (chosenPrice && Number.isFinite(chosenPrice) && chosenPrice > 0) {
-        await prisma.priceSnapshot.upsert({
-          where: { productId_month: { productId: product.id, month: targetMonth } },
-          update: { price: chosenPrice },
-          create: { productId: product.id, month: targetMonth, price: chosenPrice }
-        })
-        totalPrices++
-      }
-    }
-  }
-
-  console.log(`[Cardmarket Sync] Terminé : ${totalProducts} boîtes traitées, ${totalPrices} prix enregistrés.`)
-
-  return {
-    ok: true,
-    month: targetMonth,
-    productsCount: totalProducts,
-    pricesCount: totalPrices
   }
 })
+
