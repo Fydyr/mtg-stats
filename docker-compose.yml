@@ -1,0 +1,49 @@
+services:
+  app:
+    container_name: ${NAME}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "${DATABASE_URL}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      NUXT_ADMIN_PASSWORD: "${NUXT_ADMIN_PASSWORD}"
+      NUXT_SESSION_SECRET: "${NUXT_SESSION_SECRET}"
+      NUXT_SYNC_SECRET: "${NUXT_SYNC_SECRET}"
+    depends_on:
+      - postgres
+    networks:
+      - web
+      - internal
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=web
+      - traefik.http.routers.${NAME}.entrypoints=websecure
+      - traefik.http.services.${NAME}.loadbalancer.server.port=3000
+      - traefik.http.routers.${NAME}.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.${NAME}.tls=true
+      - traefik.http.routers.${NAME}.tls.certresolver=myresolver
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: ${PREFIX_NAME}_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - internal
+
+networks:
+  web:
+    external: true
+  internal:
+    driver: bridge
+
+volumes:
+  pg_data:

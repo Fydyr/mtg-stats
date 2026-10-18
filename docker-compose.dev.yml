@@ -1,0 +1,54 @@
+# Dev local : une seule commande lance tout (Postgres + Nuxt en hot reload).
+#   docker compose -f docker-compose.dev.yml up -d
+# App : http://localhost:3000  ·  Admin : /admin (mot de passe : admin)
+# Le code est monté en volume : toute modification est rechargée automatiquement.
+services:
+  app:
+    image: node:24-alpine
+    container_name: mtg-stats_dev_app
+    working_dir: /app
+    command: >
+      sh -c "apk add --no-cache openssl &&
+             npm install --legacy-peer-deps &&
+             npx prisma generate &&
+             npx prisma migrate deploy &&
+             npx tsx prisma/seed.ts &&
+             npm run dev -- --host 0.0.0.0"
+    environment:
+      DATABASE_URL: postgresql://mtgstats:mtgstats@postgres:5432/mtgstats?schema=public
+      NUXT_ADMIN_PASSWORD: admin
+      NUXT_SESSION_SECRET: dev-secret-not-for-production
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      # node_modules dans un volume Docker (les binaires Windows ne sont pas compatibles Linux)
+      - node_modules_dev:/app/node_modules
+      - nuxt_dev:/app/.nuxt
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: mtg-stats_dev_postgres
+    environment:
+      POSTGRES_USER: mtgstats
+      POSTGRES_PASSWORD: mtgstats
+      POSTGRES_DB: mtgstats
+    # Exposé pour consulter la base avec un client SQL (DBeaver, etc.)
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mtgstats"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pg_dev_data:
+  node_modules_dev:
+  nuxt_dev:

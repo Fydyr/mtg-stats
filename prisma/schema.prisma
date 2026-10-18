@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BoosterType {
+  DRAFT
+  SET
+  PLAY
+  COLLECTOR
+  OTHER
+}
+
+model Product {
+  id            Int             @id @default(autoincrement())
+  cardmarketId  Int?            @unique
+  name          String
+  type          BoosterType     @default(DRAFT)
+  releaseDate   DateTime?
+  /// URL exacte de la fiche Cardmarket (sinon : lien de recherche généré)
+  cardmarketUrl String?
+  createdAt     DateTime        @default(now())
+  prices        PriceSnapshot[]
+
+  @@unique([name, type])
+}
+
+model PriceSnapshot {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  /// Mois au format YYYY-MM
+  month     String
+  price     Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, month])
+  @@index([month])
+}
