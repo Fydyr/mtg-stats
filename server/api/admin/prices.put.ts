@@ -6,6 +6,7 @@ type Body = {
   prices?: {
     productId: number
     price: number | null
+    ev?: number | null
     cardmarketUrl?: string
     type?: BoosterType
     releaseDate?: string | null
@@ -54,10 +55,11 @@ export default defineEventHandler(async (event) => {
     if (!Number.isFinite(price) || price < 0) {
       throw createError({ statusCode: 400, statusMessage: `Prix invalide (produit ${productId})` })
     }
+    const evVal = p.ev != null && !isNaN(Number(p.ev)) && Number(p.ev) >= 0 ? Number(p.ev) : null
     return prisma.priceSnapshot.upsert({
       where: { productId_month: { productId, month } },
-      update: { price },
-      create: { productId, month, price }
+      update: { price, ...(p.ev !== undefined ? { ev: evVal } : {}) },
+      create: { productId, month, price, ev: evVal }
     })
   })
 

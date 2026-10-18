@@ -28,6 +28,7 @@ export default defineEventHandler(async (event) => {
       releaseDate: p.releaseDate ? p.releaseDate.toISOString().slice(0, 10) : null,
       cardmarketUrl: p.cardmarketUrl ?? '',
       price: Number(currentSnap?.price ?? NaN),
+      ev: currentSnap?.ev != null ? Number(currentSnap.ev) : null,
       previous: Number(prevSnap?.price ?? NaN)
     }
   })

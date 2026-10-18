@@ -7,24 +7,44 @@ Chart.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip, F
 const route = useRoute()
 const { data, error } = await useFetch<{
   id: number; name: string; type: string; releaseDate: string | null; cardmarket: string
-  history: { month: string; price: number }[]
+  history: { month: string; price: number; ev: number | null }[]
 }>(`/api/products/${route.params.id}`)
 
 if (error.value) throw createError({ statusCode: 404, statusMessage: 'Produit introuvable', fatal: true })
 
+const hasEv = computed(() => data.value?.history.some((h) => h.ev != null && h.ev > 0))
+
 const chartData = computed(() => ({
   labels: data.value!.history.map((h) => h.month),
-  datasets: [{
-    data: data.value!.history.map((h) => h.price),
-    borderColor: '#5b8def',
-    backgroundColor: 'rgba(91, 141, 239, 0.12)',
-    fill: true, tension: 0.25, pointRadius: 3, pointBackgroundColor: '#5b8def'
-  }]
+  datasets: [
+    {
+      label: 'Prix boîte',
+      data: data.value!.history.map((h) => h.price),
+      borderColor: '#5b8def',
+      backgroundColor: 'rgba(91, 141, 239, 0.12)',
+      fill: true, tension: 0.25, pointRadius: 3, pointBackgroundColor: '#5b8def'
+    },
+    ...(hasEv.value
+      ? [
+          {
+            label: 'Expected Value (EV)',
+            data: data.value!.history.map((h) => h.ev),
+            borderColor: '#7aa7ff',
+            backgroundColor: 'transparent',
+            borderDash: [5, 5],
+            fill: false,
+            tension: 0.25,
+            pointRadius: 3,
+            pointBackgroundColor: '#7aa7ff'
+          }
+        ]
+      : [])
+  ]
 }))
 
 const options = {
   responsive: true, maintainAspectRatio: false,
-  plugins: { legend: { display: false } },
+  plugins: { legend: { display: hasEv.value, labels: { color: '#9a9ca3' } } },
   scales: {
     x: { ticks: { color: '#9a9ca3' }, grid: { color: 'rgba(255,255,255,.05)' } },
     y: { ticks: { color: '#9a9ca3', callback: (v: any) => v + ' €' }, grid: { color: 'rgba(255,255,255,.05)' } }
@@ -33,6 +53,7 @@ const options = {
 
 const first = computed(() => data.value!.history[0]?.price)
 const last = computed(() => data.value!.history.at(-1)?.price)
+const lastEv = computed(() => data.value!.history.at(-1)?.ev)
 const total = computed(() => first.value && last.value ? ((last.value - first.value) / first.value) * 100 : null)
 
 useHead({ title: `${data.value?.name} | MTG Stats` })
@@ -49,6 +70,10 @@ useHead({ title: `${data.value?.name} | MTG Stats` })
 
   <section class="stats">
     <div class="card stat"><div class="label">Prix actuel</div><div class="value">{{ last ?? '-' }} €</div></div>
+    <div v-if="lastEv != null" class="card stat">
+      <div class="label">EV estimée</div>
+      <div class="value" style="color: #7aa7ff;">{{ lastEv }} €</div>
+    </div>
     <div class="card stat"><div class="label">Premier relevé</div><div class="value">{{ first ?? '-' }} €</div></div>
     <div class="card stat">
       <div class="label">Évolution totale</div>

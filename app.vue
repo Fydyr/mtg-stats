@@ -1,7 +1,11 @@
+<script setup lang="ts">
+const route = useRoute()
+</script>
+
 <template>
   <div class="app-layout">
     <header class="site-header">
-      <div class="container header-container">
+      <div class="container header-container" :class="{ 'container-fluid': route.path.startsWith('/admin') }">
         <NuxtLink to="/" class="brand">
           <span class="brand-dot" />
           <span>MTG Stats</span>
@@ -14,13 +18,13 @@
     </header>
 
     <main class="main-content">
-      <div class="container">
+      <div class="container" :class="{ 'container-fluid': route.path.startsWith('/admin') }">
         <NuxtPage />
       </div>
     </main>
 
     <footer class="site-footer">
-      <div class="container footer-container">
+      <div class="container footer-container" :class="{ 'container-fluid': route.path.startsWith('/admin') }">
         <p>MTG Stats · Suivi mensuel des prix des boosters scellés Magic: The Gathering (marché européen)</p>
       </div>
     </footer>

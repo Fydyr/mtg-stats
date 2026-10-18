@@ -5,6 +5,7 @@ type Row = {
   type: string
   releaseDate: string | null
   price: number
+  ev: number | null
   previous: number
   cardmarketUrl: string
 }
@@ -21,11 +22,13 @@ const rows = ref<{
   releaseDate: string
   previous: number | null
   value: string
+  evValue: string
   cardmarketUrl: string
 }[]>([])
 
 const loading = ref(false)
 const syncingSheet = ref(false)
+const syncingEv = ref(false)
 const sheetUrl = ref('https://docs.google.com/spreadsheets/d/1668tbtGyFHhB-x3c9b7ft546PK3fsKMR8eK7iLCh0ps')
 const toast = ref<{ msg: string; error?: boolean } | null>(null)
 const searchFilter = ref('')
@@ -153,7 +156,8 @@ async function load() {
       releaseDate: r.releaseDate || '',
       cardmarketUrl: r.cardmarketUrl,
       previous: Number.isNaN(r.previous) ? null : r.previous,
-      value: Number.isNaN(r.price) ? '' : String(r.price)
+      value: Number.isNaN(r.price) ? '' : String(r.price),
+      evValue: r.ev != null && !Number.isNaN(r.ev) ? String(r.ev) : ''
     }))
   } catch {
     notify('Chargement impossible', true)
@@ -176,6 +180,22 @@ async function syncGoogleSheet() {
   syncingSheet.value = false
 }
 
+async function syncEv() {
+  syncingEv.value = true
+  try {
+    const res = await $fetch<{ ok: boolean; month: string; matchedCount: number }>('/api/admin/sync-ev', {
+      method: 'POST',
+      body: { month: month.value }
+    })
+    notify(`Synchronisation EV réussie : ${res.matchedCount} boîtes associées avec leur Expected Value pour ${res.month} !`)
+    await load()
+  } catch (e: any) {
+    notify(e?.statusMessage || 'Erreur lors de la synchronisation des EV', true)
+  } finally {
+    syncingEv.value = false
+  }
+}
+
 async function save() {
   try {
     const prices = rows.value.map((r) => ({
@@ -183,10 +203,11 @@ async function save() {
       type: r.type as any,
       releaseDate: r.releaseDate || null,
       cardmarketUrl: r.cardmarketUrl,
-      price: r.value.trim() === '' ? null : Number(r.value.replace(',', '.'))
+      price: r.value.trim() === '' ? null : Number(r.value.replace(',', '.')),
+      ev: r.evValue.trim() === '' ? null : Number(r.evValue.replace(',', '.'))
     }))
     await $fetch('/api/admin/prices', { method: 'PUT', body: { month: month.value, prices } })
-    notify('Prix et modifications enregistrés avec succès')
+    notify('Prix, EV et modifications enregistrés avec succès')
   } catch (e: any) {
     notify(e?.statusMessage || "Erreur lors de l'enregistrement", true)
   }
@@ -459,6 +480,9 @@ useHead({ title: 'Admin | MTG Stats', meta: [{ name: 'robots', content: 'noindex
         </button>
       </div>
       <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn ghost" :disabled="syncingEv" title="Récupère les Expected Values calculées depuis Dawnglare / TCG" @click="syncEv">
+          {{ syncingEv ? 'Synchro EV...' : 'Synchroniser EV' }}
+        </button>
         <button class="btn ghost" @click="prefill">Pré-remplir avec mois précédent</button>
         <button class="btn" @click="save">Enregistrer</button>
       </div>
@@ -467,34 +491,46 @@ useHead({ title: 'Admin | MTG Stats', meta: [{ name: 'robots', content: 'noindex
     <!-- Tableau de saisie -->
     <div class="card table-wrap">
       <div v-if="loading" style="text-align:center; padding:40px; color:var(--muted);">Chargement des boîtes...</div>
-      <table v-else>
+      <table v-else class="admin-table">
+        <colgroup>
+          <col />
+          <col style="width: 86px;" />
+          <col style="width: 114px;" />
+          <col style="width: 78px;" />
+          <col style="width: 82px;" />
+          <col style="width: 82px;" />
+          <col style="width: 70px;" />
+          <col style="width: 130px;" />
+          <col style="width: 36px;" />
+        </colgroup>
         <thead>
           <tr>
-            <th style="min-width: 200px;">Édition</th>
-            <th style="width: 110px;">Type</th>
-            <th style="width: 135px;">Date de sortie</th>
-            <th class="num" style="width: 110px;">Mois précédent</th>
-            <th class="num" style="width: 125px;">Prix (€)</th>
-            <th class="num" style="width: 105px;">Variation</th>
-            <th style="width: 160px;">Cardmarket</th>
-            <th style="width: 50px; text-align: center;">Action</th>
+            <th>Édition</th>
+            <th>Type</th>
+            <th>Date sortie</th>
+            <th class="num">Mois préc.</th>
+            <th class="num">Prix (€)</th>
+            <th class="num">EV (€)</th>
+            <th class="num">Var.</th>
+            <th>Cardmarket</th>
+            <th style="text-align: center;"></th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="r in filteredRows" :key="r.id">
             <!-- Édition -->
-            <td style="font-weight: 600;">
+            <td style="font-weight: 600; white-space: normal; word-break: break-word;" :title="r.name">
               {{ r.name }}
             </td>
 
             <!-- Type -->
             <td>
-              <select v-model="r.type" class="input" style="padding: 5px 8px; font-size: 0.78rem; width: 100%;">
-                <option value="DRAFT">DRAFT</option>
-                <option value="SET">SET</option>
-                <option value="PLAY">PLAY</option>
-                <option value="COLLECTOR">COLLECTOR</option>
-                <option value="OTHER">AUTRES</option>
+              <select v-model="r.type" class="input" style="padding: 3px 4px; font-size: 0.72rem; width: 100%; box-sizing: border-box;">
+                <option value="DRAFT">Draft</option>
+                <option value="SET">Set</option>
+                <option value="PLAY">Play</option>
+                <option value="COLLECTOR">Collector</option>
+                <option value="OTHER">Autres</option>
               </select>
             </td>
 
@@ -504,53 +540,68 @@ useHead({ title: 'Admin | MTG Stats', meta: [{ name: 'robots', content: 'noindex
                 v-model="r.releaseDate"
                 type="date"
                 class="input"
-                style="padding: 4px 6px; font-size: 0.75rem; width: 100%; color-scheme: dark;"
+                style="padding: 2px 4px; font-size: 0.7rem; width: 100%; color-scheme: dark; box-sizing: border-box;"
                 title="Date de sortie de l'édition"
               />
             </td>
 
             <!-- Mois précédent -->
-            <td class="num muted" style="font-weight: 500;">
+            <td class="num muted" style="font-weight: 500; font-size: 0.78rem;">
               {{ r.previous != null && !isNaN(r.previous) ? r.previous + ' €' : '-' }}
             </td>
 
-            <!-- Prix du mois avec symbole € intégré sans couper l'input -->
+            <!-- Prix du mois -->
             <td class="num">
-              <div style="display: inline-flex; align-items: center; gap: 4px; justify-content: flex-end;">
+              <div style="display: flex; align-items: center; gap: 2px; justify-content: flex-end;">
                 <input
                   v-model="r.value"
                   class="input admin-input"
                   inputmode="decimal"
                   placeholder="—"
-                  style="width: 82px; padding: 6px 8px; text-align: right; font-weight: 600;"
+                  style="width: 52px; padding: 3px 5px; text-align: right; font-weight: 600; font-size: 0.78rem;"
                 />
-                <span style="font-size: 0.85rem; color: var(--muted); font-weight: 600;">€</span>
+                <span style="font-size: 0.75rem; color: var(--muted); font-weight: 600;">€</span>
+              </div>
+            </td>
+
+            <!-- Expected Value (EV) -->
+            <td class="num">
+              <div style="display: flex; align-items: center; gap: 2px; justify-content: flex-end;">
+                <input
+                  v-model="r.evValue"
+                  class="input admin-input"
+                  inputmode="decimal"
+                  placeholder="—"
+                  style="width: 52px; padding: 3px 5px; text-align: right; font-weight: 600; color: #7aa7ff; font-size: 0.78rem;"
+                  title="Expected Value (valeur estimée du contenu scellé)"
+                />
+                <span style="font-size: 0.75rem; color: var(--muted); font-weight: 600;">€</span>
               </div>
             </td>
 
             <!-- Variation -->
             <td class="num">
-              <span class="tag-var" :class="diff(r) == null ? 'muted' : diff(r)! >= 0 ? 'up' : 'down'">
-                {{ diff(r) == null ? '-' : (diff(r)! > 0 ? '+' : '') + diff(r)!.toFixed(1).replace('.', ',') + ' %' }}
+              <span class="tag-var" :class="diff(r) == null ? 'muted' : diff(r)! >= 0 ? 'up' : 'down'" style="font-size: 0.7rem; padding: 2px 4px;">
+                {{ diff(r) == null ? '-' : (diff(r)! > 0 ? '+' : '') + diff(r)!.toFixed(1).replace('.', ',') + '%' }}
               </span>
             </td>
 
             <!-- Cardmarket -->
             <td>
-              <div style="display: flex; align-items: center; gap: 6px;">
+              <div style="display: flex; align-items: center; gap: 4px;">
                 <a
                   class="cm-link"
                   :href="r.cardmarketUrl || searchUrl(r.name, r.type)"
                   target="_blank"
                   rel="noopener noreferrer"
-                  style="font-size: 0.75rem; padding: 4px 8px;"
+                  style="font-size: 0.7rem; padding: 2px 5px; white-space: nowrap; flex-shrink: 0;"
                 >
                   Voir ↗
                 </a>
                 <input
                   v-model="r.cardmarketUrl"
                   class="input"
-                  style="padding: 4px 6px; font-size: 0.75rem; width: 95px;"
+                  style="padding: 2px 4px; font-size: 0.7rem; width: 100%; min-width: 0;"
                   placeholder="URL manuelle"
                   title="URL directe optionnelle si différente"
                 />
@@ -561,7 +612,7 @@ useHead({ title: 'Admin | MTG Stats', meta: [{ name: 'robots', content: 'noindex
             <td style="text-align: center;">
               <button
                 class="btn ghost"
-                style="padding: 4px 8px; font-size: 0.75rem; border-color: transparent; color: var(--down);"
+                style="padding: 2px 5px; font-size: 0.72rem; border-color: transparent; color: var(--down);"
                 title="Supprimer cette boîte"
                 @click="deleteProduct(r.id, r.name)"
               >
@@ -570,7 +621,7 @@ useHead({ title: 'Admin | MTG Stats', meta: [{ name: 'robots', content: 'noindex
             </td>
           </tr>
           <tr v-if="!filteredRows.length">
-            <td colspan="8" class="muted" style="text-align: center; padding: 40px;">
+            <td colspan="9" class="muted" style="text-align: center; padding: 40px;">
               Aucune boîte trouvée. Cliquez sur <strong>"Synchroniser Cardmarket"</strong> ou <strong>"Synchroniser depuis le Google Sheet"</strong> !
             </td>
           </tr>

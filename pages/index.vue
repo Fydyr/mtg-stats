@@ -1,7 +1,7 @@
 <script setup lang="ts">
 type Item = {
   id: number; name: string; type: string; releaseDate: string | null; cardmarket: string
-  price: number | null; previous: number | null
+  price: number | null; ev: number | null; previous: number | null
   var1m: number | null; var3m: number | null; var6m: number | null
 }
 
@@ -122,16 +122,19 @@ useHead({ title: 'MTG Stats : prix des boosters scellés Magic' })
           <th style="width: 125px;" @click="sortBy('releaseDate')">
             Date de sortie <span v-if="sortKey === 'releaseDate'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
           </th>
-          <th class="num" style="width: 115px;" @click="sortBy('price')">
+          <th class="num" style="width: 105px;" @click="sortBy('price')">
             Prix <span v-if="sortKey === 'price'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
           </th>
-          <th class="num" style="width: 110px;" @click="sortBy('var1m')">
+          <th class="num" style="width: 105px;" @click="sortBy('ev')">
+            EV <span v-if="sortKey === 'ev'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+          </th>
+          <th class="num" style="width: 105px;" @click="sortBy('var1m')">
             1 mois <span v-if="sortKey === 'var1m'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
           </th>
-          <th class="num" style="width: 110px;" @click="sortBy('var3m')">
+          <th class="num" style="width: 105px;" @click="sortBy('var3m')">
             3 mois <span v-if="sortKey === 'var3m'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
           </th>
-          <th class="num" style="width: 110px;" @click="sortBy('var6m')">
+          <th class="num" style="width: 105px;" @click="sortBy('var6m')">
             6 mois <span v-if="sortKey === 'var6m'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
           </th>
           <th style="width: 125px; text-align: center;">Achat</th>
@@ -147,6 +150,7 @@ useHead({ title: 'MTG Stats : prix des boosters scellés Magic' })
           </td>
           <td class="muted">{{ year(r.releaseDate) }}</td>
           <td class="num" style="font-weight: 700; font-size: 0.95rem;">{{ eur(r.price) }}</td>
+          <td class="num" style="font-weight: 600; color: #7aa7ff;">{{ eur(r.ev) }}</td>
           <td class="num">
             <span class="tag-var" :class="cls(r.var1m)">{{ pct(r.var1m) }}</span>
           </td>
@@ -163,7 +167,7 @@ useHead({ title: 'MTG Stats : prix des boosters scellés Magic' })
           </td>
         </tr>
         <tr v-if="!rows.length">
-          <td colspan="8" class="muted" style="text-align:center; padding:40px;">Aucun résultat</td>
+          <td colspan="9" class="muted" style="text-align:center; padding:40px;">Aucun résultat</td>
         </tr>
       </tbody>
     </table>

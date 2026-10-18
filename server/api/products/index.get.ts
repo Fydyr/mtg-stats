@@ -27,6 +27,9 @@ export default defineEventHandler(async () => {
     const p3 = byMonth.get(m3) ?? p.prices.find((s) => s.month <= m3)?.price ?? null
     const p6 = byMonth.get(m6) ?? p.prices.find((s) => s.month <= m6)?.price ?? null
 
+    const currentSnap = p.prices.find((s) => s.month === month)
+    const currentEv = currentSnap?.ev != null ? Number(currentSnap.ev) : null
+
     return {
       id: p.id,
       name: p.name,
@@ -34,6 +37,7 @@ export default defineEventHandler(async () => {
       releaseDate: p.releaseDate,
       cardmarket: cardmarketLink(p.name, p.type, p.cardmarketUrl),
       price: current,
+      ev: currentEv,
       previous,
       var1m: variation(current, previous),
       var3m: variation(current, p3 ? Number(p3) : null),

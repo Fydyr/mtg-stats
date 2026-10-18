@@ -14,6 +14,10 @@ export default defineEventHandler(async (event) => {
     type: product.type,
     releaseDate: product.releaseDate,
     cardmarket: cardmarketLink(product.name, product.type, product.cardmarketUrl),
-    history: product.prices.map((s) => ({ month: s.month, price: Number(s.price) }))
+    history: product.prices.map((s) => ({
+      month: s.month,
+      price: Number(s.price),
+      ev: s.ev != null ? Number(s.ev) : null
+    }))
   }
 })
