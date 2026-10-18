@@ -40,7 +40,18 @@ function sortBy(k: keyof Item) {
   else { sortKey.value = k; sortDir.value = -1 }
 }
 
-const withVar = computed(() => items.value.filter((i) => i.var1m != null))
+const selectedTypeLabel = computed(() => {
+  const found = TYPES.find((t) => t.v === type.value)
+  return found && found.v !== 'ALL' ? found.l : null
+})
+
+// Produits de la catégorie sélectionnée
+const categoryItems = computed(() => {
+  if (type.value === 'ALL') return items.value
+  return items.value.filter((i) => i.type === type.value)
+})
+
+const withVar = computed(() => categoryItems.value.filter((i) => i.var1m != null))
 const best = computed(() => [...withVar.value].sort((a, b) => b.var1m! - a.var1m!)[0])
 const worst = computed(() => [...withVar.value].sort((a, b) => a.var1m! - b.var1m!)[0])
 const avgVar = computed(() =>
@@ -66,17 +77,26 @@ useHead({ title: 'MTG Stats : prix des boosters scellés Magic' })
 
   <section class="stats">
     <div class="card stat">
-      <div class="label">Variation moyenne (1 mois)</div>
+      <div class="label" style="display:flex; align-items:center; justify-content:space-between;">
+        <span>Variation moyenne (1 mois)</span>
+        <span v-if="selectedTypeLabel" class="badge" :class="`badge-${type.toLowerCase()}`" style="font-size:0.65rem;">{{ selectedTypeLabel }}</span>
+      </div>
       <div class="value" :class="cls(avgVar)">{{ pct(avgVar) }}</div>
-      <div class="sub">{{ withVar.length }} produits comparés</div>
+      <div class="sub">{{ withVar.length }} boîte(s) comparée(s)</div>
     </div>
-    <NuxtLink :to="best ? `/products/${best.id}` : '/'" class="card stat stat-link">
-      <div class="label">Plus forte hausse</div>
+    <NuxtLink :to="best ? `/products/${best.id}` : '#'" class="card stat stat-link">
+      <div class="label" style="display:flex; align-items:center; justify-content:space-between;">
+        <span>Plus forte hausse</span>
+        <span v-if="selectedTypeLabel" class="badge" :class="`badge-${type.toLowerCase()}`" style="font-size:0.65rem;">{{ selectedTypeLabel }}</span>
+      </div>
       <div class="value up">{{ pct(best?.var1m ?? null) }}</div>
       <div class="sub">{{ best?.name ?? '-' }}</div>
     </NuxtLink>
-    <NuxtLink :to="worst ? `/products/${worst.id}` : '/'" class="card stat stat-link">
-      <div class="label">Plus forte baisse</div>
+    <NuxtLink :to="worst ? `/products/${worst.id}` : '#'" class="card stat stat-link">
+      <div class="label" style="display:flex; align-items:center; justify-content:space-between;">
+        <span>Plus forte baisse</span>
+        <span v-if="selectedTypeLabel" class="badge" :class="`badge-${type.toLowerCase()}`" style="font-size:0.65rem;">{{ selectedTypeLabel }}</span>
+      </div>
       <div class="value down">{{ pct(worst?.var1m ?? null) }}</div>
       <div class="sub">{{ worst?.name ?? '-' }}</div>
     </NuxtLink>
@@ -99,8 +119,8 @@ useHead({ title: 'MTG Stats : prix des boosters scellés Magic' })
           <th style="width: 110px;" @click="sortBy('type')">
             Type <span v-if="sortKey === 'type'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
           </th>
-          <th style="width: 105px;" @click="sortBy('releaseDate')">
-            Sortie <span v-if="sortKey === 'releaseDate'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+          <th style="width: 125px;" @click="sortBy('releaseDate')">
+            Date de sortie <span v-if="sortKey === 'releaseDate'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
           </th>
           <th class="num" style="width: 115px;" @click="sortBy('price')">
             Prix <span v-if="sortKey === 'price'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>

@@ -3,7 +3,13 @@ import { MONTH_RE } from '../../utils/months'
 
 type Body = {
   month?: string
-  prices?: { productId: number; price: number | null; cardmarketUrl?: string; type?: BoosterType }[]
+  prices?: {
+    productId: number
+    price: number | null
+    cardmarketUrl?: string
+    type?: BoosterType
+    releaseDate?: string | null
+  }[]
 }
 
 const CM_RE = /^https:\/\/www\.cardmarket\.com\//
@@ -27,12 +33,17 @@ export default defineEventHandler(async (event) => {
     if (url && !CM_RE.test(url)) {
       throw createError({ statusCode: 400, statusMessage: 'Le lien doit commencer par https://www.cardmarket.com/' })
     }
-    if (p.cardmarketUrl !== undefined || p.type !== undefined) {
+    if (p.cardmarketUrl !== undefined || p.type !== undefined || p.releaseDate !== undefined) {
+      let rDate: Date | null | undefined = undefined
+      if (p.releaseDate !== undefined) {
+        rDate = p.releaseDate ? new Date(p.releaseDate) : null
+      }
       extra.push(prisma.product.update({
         where: { id: productId },
         data: {
           ...(p.cardmarketUrl !== undefined ? { cardmarketUrl: url || null } : {}),
-          ...(p.type && p.type in BoosterType ? { type: p.type } : {})
+          ...(p.type && p.type in BoosterType ? { type: p.type } : {}),
+          ...(p.releaseDate !== undefined ? { releaseDate: rDate } : {})
         }
       }))
     }

@@ -3,6 +3,7 @@ type Row = {
   id: number
   name: string
   type: string
+  releaseDate: string | null
   price: number
   previous: number
   cardmarketUrl: string
@@ -17,6 +18,7 @@ const rows = ref<{
   id: number
   name: string
   type: string
+  releaseDate: string
   previous: number | null
   value: string
   cardmarketUrl: string
@@ -148,6 +150,7 @@ async function load() {
       id: r.id,
       name: r.name,
       type: r.type,
+      releaseDate: r.releaseDate || '',
       cardmarketUrl: r.cardmarketUrl,
       previous: Number.isNaN(r.previous) ? null : r.previous,
       value: Number.isNaN(r.price) ? '' : String(r.price)
@@ -178,6 +181,7 @@ async function save() {
     const prices = rows.value.map((r) => ({
       productId: r.id,
       type: r.type as any,
+      releaseDate: r.releaseDate || null,
       cardmarketUrl: r.cardmarketUrl,
       price: r.value.trim() === '' ? null : Number(r.value.replace(',', '.'))
     }))
@@ -466,13 +470,14 @@ useHead({ title: 'Admin | MTG Stats', meta: [{ name: 'robots', content: 'noindex
       <table v-else>
         <thead>
           <tr>
-            <th style="min-width: 220px;">Édition</th>
-            <th style="width: 120px;">Type</th>
-            <th class="num" style="width: 120px;">Mois précédent</th>
-            <th class="num" style="width: 130px;">Prix (€)</th>
-            <th class="num" style="width: 110px;">Variation</th>
-            <th style="width: 170px;">Cardmarket</th>
-            <th style="width: 60px; text-align: center;">Action</th>
+            <th style="min-width: 200px;">Édition</th>
+            <th style="width: 110px;">Type</th>
+            <th style="width: 135px;">Date de sortie</th>
+            <th class="num" style="width: 110px;">Mois précédent</th>
+            <th class="num" style="width: 125px;">Prix (€)</th>
+            <th class="num" style="width: 105px;">Variation</th>
+            <th style="width: 160px;">Cardmarket</th>
+            <th style="width: 50px; text-align: center;">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -491,6 +496,17 @@ useHead({ title: 'Admin | MTG Stats', meta: [{ name: 'robots', content: 'noindex
                 <option value="COLLECTOR">COLLECTOR</option>
                 <option value="OTHER">AUTRES</option>
               </select>
+            </td>
+
+            <!-- Date de sortie -->
+            <td>
+              <input
+                v-model="r.releaseDate"
+                type="date"
+                class="input"
+                style="padding: 4px 6px; font-size: 0.75rem; width: 100%; color-scheme: dark;"
+                title="Date de sortie de l'édition"
+              />
             </td>
 
             <!-- Mois précédent -->
@@ -554,7 +570,7 @@ useHead({ title: 'Admin | MTG Stats', meta: [{ name: 'robots', content: 'noindex
             </td>
           </tr>
           <tr v-if="!filteredRows.length">
-            <td colspan="7" class="muted" style="text-align: center; padding: 40px;">
+            <td colspan="8" class="muted" style="text-align: center; padding: 40px;">
               Aucune boîte trouvée. Cliquez sur <strong>"Synchroniser Cardmarket"</strong> ou <strong>"Synchroniser depuis le Google Sheet"</strong> !
             </td>
           </tr>
