@@ -77,7 +77,7 @@ const JUNK_KEYWORDS = [
  */
 export async function syncCardmarketData(
   targetMonth?: string,
-  priceFieldChoice: 'trend' | 'low' | 'avg' = 'trend'
+  priceFieldChoice: 'trend' | 'low' | 'avg' = 'low'
 ) {
   const month =
     targetMonth && /^\d{4}-\d{2}$/.test(targetMonth)
@@ -158,13 +158,19 @@ export async function syncCardmarketData(
       let chosenPrice: number | null = null
       if (priceFieldChoice === 'low' && pg.low && pg.low > 0) chosenPrice = pg.low
       else if (priceFieldChoice === 'avg' && pg.avg && pg.avg > 0) chosenPrice = pg.avg
-      else if (pg.trend && pg.trend > 0) chosenPrice = pg.trend
+      else if (priceFieldChoice === 'trend' && pg.trend && pg.trend > 0) chosenPrice = pg.trend
 
-      // Fallback
+      // Fallback si le prix choisi n'est pas renseigné
       if (!chosenPrice || chosenPrice <= 0) {
-        if (pg.trend && pg.trend > 0) chosenPrice = pg.trend
-        else if (pg.low && pg.low > 0) chosenPrice = pg.low
-        else if (pg.avg && pg.avg > 0) chosenPrice = pg.avg
+        if (priceFieldChoice === 'low') {
+          if (pg.low && pg.low > 0) chosenPrice = pg.low
+          else if (pg.trend && pg.trend > 0) chosenPrice = pg.trend
+          else if (pg.avg && pg.avg > 0) chosenPrice = pg.avg
+        } else {
+          if (pg.trend && pg.trend > 0) chosenPrice = pg.trend
+          else if (pg.low && pg.low > 0) chosenPrice = pg.low
+          else if (pg.avg && pg.avg > 0) chosenPrice = pg.avg
+        }
       }
 
       if (chosenPrice && Number.isFinite(chosenPrice) && chosenPrice > 0) {

@@ -61,7 +61,7 @@ export default defineEventHandler(async (event) => {
 
   const body = await readBody<{ month?: string; priceField?: 'trend' | 'low' | 'avg' }>(event).catch(() => ({}))
   const targetMonth = body?.month && /^\d{4}-\d{2}$/.test(body.month) ? body.month : undefined
-  const priceFieldChoice = body?.priceField || 'trend'
+  const priceFieldChoice = body?.priceField || 'low'
 
   try {
     return await syncCardmarketData(targetMonth, priceFieldChoice)

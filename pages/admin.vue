@@ -40,7 +40,7 @@ const newProduct = reactive<Form>({ name: '', type: 'DRAFT', releaseDate: '' })
 
 const cmFiles = ref<File[]>([])
 const cmMonth = ref(new Date().toISOString().slice(0, 7))
-const cmPriceField = ref('trend')
+const cmPriceField = ref('low')
 const cmUploading = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
@@ -280,12 +280,24 @@ const diff = (r: { previous: number | null; value: string }) => {
   return ((v - r.previous) / r.previous) * 100
 }
 
+const isAnomaly = (r: { previous: number | null; value: string }) => {
+  const d = diff(r)
+  return d != null && (d > 100 || d < -50)
+}
+
+const anomaliesCount = computed(() => {
+  return rows.value.filter(isAnomaly).length
+})
+
+const onlyAnomalies = ref(false)
+
 const filteredRows = computed(() => {
   const q = searchFilter.value.toLowerCase().trim()
   return rows.value.filter((r) => {
     const matchType = typeFilter.value === 'ALL' || r.type === typeFilter.value
     const matchName = !q || r.name.toLowerCase().includes(q)
-    return matchType && matchName
+    const matchAnomaly = !onlyAnomalies.value || isAnomaly(r)
+    return matchType && matchName && matchAnomaly
   })
 })
 
@@ -478,6 +490,16 @@ useHead({ title: 'Admin | MTG Stats', meta: [{ name: 'robots', content: 'noindex
         >
           {{ t.l }}
         </button>
+        <button
+          v-if="anomaliesCount > 0"
+          class="chip"
+          :class="{ active: onlyAnomalies }"
+          style="border-color: rgba(229, 96, 79, 0.5); color: #e5604f; display: inline-flex; align-items: center; gap: 4px;"
+          title="Afficher uniquement les boîtes dont la variation est supérieure à +100% ou inférieure à -50%"
+          @click="onlyAnomalies = !onlyAnomalies"
+        >
+          <span>⚠️ {{ anomaliesCount }} anomalie(s)</span>
+        </button>
       </div>
       <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn ghost" :disabled="syncingEv" title="Récupère les Expected Values calculées depuis Dawnglare / TCG" @click="syncEv">
@@ -581,9 +603,18 @@ useHead({ title: 'Admin | MTG Stats', meta: [{ name: 'robots', content: 'noindex
 
             <!-- Variation -->
             <td class="num">
-              <span class="tag-var" :class="diff(r) == null ? 'muted' : diff(r)! >= 0 ? 'up' : 'down'" style="font-size: 0.7rem; padding: 2px 4px;">
-                {{ diff(r) == null ? '-' : (diff(r)! > 0 ? '+' : '') + diff(r)!.toFixed(1).replace('.', ',') + '%' }}
-              </span>
+              <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px;">
+                <span
+                  v-if="isAnomaly(r)"
+                  title="Variation suspecte (> +100% ou < -50%)"
+                  style="font-size: 0.72rem; cursor: help;"
+                >
+                  ⚠️
+                </span>
+                <span class="tag-var" :class="diff(r) == null ? 'muted' : diff(r)! >= 0 ? 'up' : 'down'" style="font-size: 0.7rem; padding: 2px 4px;">
+                  {{ diff(r) == null ? '-' : (diff(r)! > 0 ? '+' : '') + diff(r)!.toFixed(1).replace('.', ',') + '%' }}
+                </span>
+              </div>
             </td>
 
             <!-- Cardmarket -->

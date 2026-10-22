@@ -12,6 +12,7 @@ const route = useRoute()
         </NuxtLink>
         <nav class="nav">
           <NuxtLink to="/">Boosters</NuxtLink>
+          <NuxtLink to="/market">Tendances Marché</NuxtLink>
           <NuxtLink to="/admin">Admin</NuxtLink>
         </nav>
       </div>

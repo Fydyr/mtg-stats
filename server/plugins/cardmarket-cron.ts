@@ -5,11 +5,11 @@ export default defineNitroPlugin(() => {
   // Planification : chaque lundi à 04h00 (fuseau Europe/Paris)
   // Expression cron standard : minute heure jour-du-mois mois jour-de-la-semaine (1 = lundi)
   const job = new Cron('0 4 * * 1', { timezone: 'Europe/Paris' }, async () => {
-    console.log('[Cron Cardmarket] Déclenchement de la synchronisation hebdomadaire automatique...')
+    console.log('[Cron Cardmarket] Déclenchement de la synchronisation hebdomadaire automatique (prix minimum - low)...')
     try {
-      const res = await syncCardmarketData()
+      const res = await syncCardmarketData(undefined, 'low')
       console.log(
-        `[Cron Cardmarket] Synchronisation réussie pour ${res.month} : ${res.productsCount} boîtes traitées, ${res.pricesCount} prix enregistrés.`
+        `[Cron Cardmarket] Synchronisation réussie pour ${res.month} (prix minimum) : ${res.productsCount} boîtes traitées, ${res.pricesCount} prix enregistrés.`
       )
     } catch (err: any) {
       console.error('[Cron Cardmarket] Erreur lors de la synchronisation hebdomadaire :', err?.message || err)

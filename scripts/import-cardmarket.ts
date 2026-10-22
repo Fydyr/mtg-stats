@@ -166,7 +166,7 @@ async function main() {
   const productsPath = getArg('--products')
   const pricesPath = getArg('--prices')
   const month = getArg('--month') || new Date().toISOString().slice(0, 7)
-  const priceField = getArg('--field') || 'trend'
+  const priceField = getArg('--field') || 'low'
 
   console.log(`[Cardmarket CLI] Mois cible: ${month}, Champ de prix: ${priceField}`)
 

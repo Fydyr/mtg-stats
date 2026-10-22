@@ -6,11 +6,20 @@ Suivi mensuel des prix des boosters scellés Magic: The Gathering (marché europ
 
 ## Fonctionnement
 
-- **Page publique `/` :** tableau triable/filtrable par catégories de boosters (Draft, Set, Play, Collector, Autres), variations 1/3/6 mois, stats globales, liens directs Cardmarket.
-- **Page `/products/:id` :** historique complet et graphique d'évolution des prix.
+- **Page publique `/` :**
+  - Tableau et vue grille de cartes (avec symboles officiels d'éditions Scryfall).
+  - Tri et filtres par catégories de boosters (`Draft`, `Set`, `Play`, `Collector`, `Autres`).
+  - Calcul et tri par **Ratio EV / Prix** avec filtre rapide pour les boîtes rentables à l'ouverture (`⚡ EV > Prix`).
+  - Sélection multiple (jusqu'à 5 boîtes) avec barre flottante pour lancer la comparaison.
+  - Export instantané au format CSV (compatible Excel).
+- **Page `/products/:id` :** historique complet, graphique d'évolution avec sélecteurs de période (6 mois, 1 an, 3 ans, Tout), EV estimée, ratio de rentabilité et tooltips mensuels détaillés.
+- **Page `/compare` :** outil de comparaison multi-produits avec vue prix brut (€) et vue performance relative (% base 100).
+- **Page `/market` :** tableau de bord des tendances macro-économiques du marché scellé, performance comparée par type et palmarès Top 10 (hausses, baisses, opportunités EV).
 - **Page `/admin` (mot de passe `NUXT_ADMIN_PASSWORD`) :**
+  - **Détection des anomalies :** repérage et filtre des variations de prix suspectes (> +100% ou < -50%).
   - **Importation officielle Cardmarket :** glissez-déposez `products_nonsingles.csv.gz` et `priceguide.csv.gz` (téléchargeables sur [Cardmarket Downloads](https://www.cardmarket.com/fr/Magic/Products/Downloads)) directement dans l'interface sans même les décompresser. L'application classe automatiquement les boîtes (`DRAFT`, `SET`, `PLAY`, `COLLECTOR`), enregistre leur URL Cardmarket directe et applique les prix du jour (`TrendPrice`, `LowPrice` ou `AvgSell`).
   - **Synchronisation automatique Google Sheets :** importe en un clic tous les onglets (`DRAFT`, `SET`, `PLAY`, `COLLECTOR`) depuis le Google Sheet communautaire.
+  - **Synchronisation des EV Dawnglare :** calcul automatique des Expected Values.
   - **Import rapide par copier-coller :** collez une liste depuis Excel ou un bloc-notes pour remplir la grille instantanément.
   - **Gestion des boîtes :** modification du type (Draft/Set/Play/Collector), de l'URL Cardmarket et suppression de produits.
   - **Saisie manuelle & Pré-remplissage :** pré-remplissage depuis le mois précédent et enregistrement par mois.
