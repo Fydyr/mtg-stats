@@ -5,6 +5,8 @@ import { Line } from 'vue-chartjs'
 Chart.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Filler)
 
 const route = useRoute()
+const { getIcon } = useSetIcons()
+
 const { data, error } = await useFetch<{
   id: number; name: string; category?: string; type: string; deckType?: string | null
   releaseDate: string | null; standardLegalUntil?: string | null; stock?: number | null; cardmarket: string
@@ -13,6 +15,26 @@ const { data, error } = await useFetch<{
 }>(`/api/products/${route.params.id}`)
 
 if (error.value) throw createError({ statusCode: 404, statusMessage: 'Produit introuvable', fatal: true })
+
+const setCode = computed(() => getIcon(data.value?.name ?? '')?.code || null)
+
+const { data: chaseData, pending: loadingChase } = useFetch<{
+  ok: boolean
+  setCode: string
+  cards: {
+    id: string
+    name: string
+    rarity: string
+    priceEur: number | null
+    priceFoilEur: number | null
+    imageUrl: string | null
+    cardmarketUrl: string | null
+    scryfallUrl: string | null
+  }[]
+}>(() => (setCode.value ? `/api/sets/${setCode.value}/top-cards` : null), {
+  lazy: true
+})
+const chaseCards = computed(() => chaseData.value?.cards || [])
 
 const timeRange = ref<'6m' | '1y' | '3y' | 'all'>('all')
 
@@ -128,8 +150,6 @@ const evRatio = computed(() => {
   return ratio >= 15 && ratio <= 250 ? ratio : null
 })
 
-const { getIcon } = useSetIcons()
-
 const reqUrl = useRequestURL()
 const config = useRuntimeConfig()
 const siteUrl = computed(() => reqUrl.origin || (config.public.siteUrl as string) || 'https://mtg-stats.aeroliths.fr')
@@ -216,7 +236,13 @@ useSeoMeta({
         </span>
         <span v-if="data?.releaseDate"> · sorti en {{ new Date(data.releaseDate).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) }}</span>
       </p>
-      <p style="margin-top:14px"><a class="btn" :href="data?.cardmarket" target="_blank" rel="noopener noreferrer">Voir sur Cardmarket ↗</a></p>
+      <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
+        <a class="btn" :href="data?.cardmarket" target="_blank" rel="noopener noreferrer">Voir sur Cardmarket ↗</a>
+        <NuxtLink :to="`/compare?ids=${data?.id}`" class="btn ghost" style="display:inline-flex; align-items:center; gap:6px;">
+          <span>⚖️</span>
+          <span>Comparer</span>
+        </NuxtLink>
+      </div>
     </div>
   </section>
 
@@ -263,6 +289,72 @@ useSeoMeta({
     </div>
     <div class="chart-box"><ClientOnly><Line :data="chartData" :options="options" /></ClientOnly></div>
   </div>
+
+  <!-- CARTES MAÎTRESSES DU SET (CHASE CARDS SCRYFALL) -->
+  <section v-if="loadingChase || chaseCards.length" class="card" style="margin-top: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
+      <div>
+        <h3 style="margin: 0 0 4px 0; display: flex; align-items: center; gap: 8px;">
+          <span>🃏 Cartes maîtresses de l'extension (Chase Cards)</span>
+          <span v-if="setCode" class="badge" style="background: rgba(91, 141, 239, 0.15); color: #7aa7ff;">{{ setCode }}</span>
+        </h3>
+        <p class="muted" style="margin: 0; font-size: 0.85rem;">
+          Les cartes les plus recherchées du set avec leurs cotes de marché en version régulière et foil.
+        </p>
+      </div>
+      <span class="muted" style="font-size: 0.75rem;">Source : Scryfall API</span>
+    </div>
+
+    <div v-if="loadingChase" class="muted" style="text-align: center; padding: 30px;">
+      Chargement des cartes maîtresses...
+    </div>
+
+    <div v-else class="chase-cards-grid">
+      <div
+        v-for="card in chaseCards"
+        :key="card.id"
+        class="chase-card-item"
+      >
+        <a
+          :href="card.cardmarketUrl || card.scryfallUrl || '#'"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="chase-card-img-link"
+          :title="`Voir ${card.name} sur Cardmarket`"
+        >
+          <img
+            v-if="card.imageUrl"
+            :src="card.imageUrl"
+            :alt="card.name"
+            class="chase-card-img"
+            loading="lazy"
+          />
+        </a>
+        <div class="chase-card-info">
+          <a
+            :href="card.cardmarketUrl || card.scryfallUrl || '#'"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="chase-card-name"
+            :title="card.name"
+          >
+            {{ card.name }}
+          </a>
+          <div class="chase-card-meta">
+            <span v-if="card.priceEur != null" class="chase-card-price">
+              {{ card.priceEur }} €
+            </span>
+            <span v-if="card.priceFoilEur != null" class="chase-card-foil" title="Prix Foil">
+              ✨ {{ card.priceFoilEur }} €
+            </span>
+            <span class="badge" :class="`badge-rarity-${card.rarity}`" style="font-size: 0.65rem; padding: 2px 6px;">
+              {{ card.rarity === 'mythic' ? 'Mythique' : card.rarity === 'rare' ? 'Rare' : card.rarity }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 </template>
 
 <style scoped>
@@ -303,5 +395,101 @@ useSeoMeta({
 .product-hero-info {
   flex: 1;
   min-width: 260px;
+}
+
+/* Chase Cards Grid */
+.chase-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 14px;
+}
+
+.chase-card-item {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: all .2s ease;
+}
+
+.chase-card-item:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+.chase-card-img-link {
+  display: block;
+  aspect-ratio: 5 / 7;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.chase-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .25s ease;
+}
+
+.chase-card-item:hover .chase-card-img {
+  transform: scale(1.04);
+}
+
+.chase-card-info {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.chase-card-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: none;
+}
+
+.chase-card-name:hover {
+  color: var(--accent);
+}
+
+.chase-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.chase-card-price {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #4cb782;
+}
+
+.chase-card-foil {
+  font-size: 0.72rem;
+  color: #e5a93b;
+  font-weight: 600;
+}
+
+.badge-rarity-mythic {
+  background: rgba(245, 166, 35, 0.15);
+  color: #f5a623;
+  border: 1px solid rgba(245, 166, 35, 0.3);
+}
+
+.badge-rarity-rare {
+  background: rgba(229, 192, 123, 0.15);
+  color: #e5c07b;
+  border: 1px solid rgba(229, 192, 123, 0.3);
 }
 </style>

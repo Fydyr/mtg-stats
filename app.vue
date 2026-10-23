@@ -27,6 +27,7 @@ function toggleMobileMenu() {
           <NuxtLink to="/boxes" :class="{ 'nav-active': route.path.startsWith('/boxes') || route.path.startsWith('/boites') }">Boîtes</NuxtLink>
           <NuxtLink to="/boosters" :class="{ 'nav-active': route.path.startsWith('/boosters') }">Boosters</NuxtLink>
           <NuxtLink to="/decks" :class="{ 'nav-active': route.path.startsWith('/decks') }">Decks</NuxtLink>
+          <NuxtLink to="/compare" :class="{ 'nav-active': route.path.startsWith('/compare') }">Comparateur</NuxtLink>
           <NuxtLink to="/market" :class="{ 'nav-active': route.path.startsWith('/market') }">Tendances Marché</NuxtLink>
           <NuxtLink to="/admin" :class="{ 'nav-active': route.path.startsWith('/admin') }">Admin</NuxtLink>
         </nav>
@@ -68,6 +69,10 @@ function toggleMobileMenu() {
               <NuxtLink to="/decks" :class="{ 'mobile-nav-active': route.path.startsWith('/decks') }" @click="isMobileMenuOpen = false">
                 <span class="nav-icon">⚔️</span>
                 <span>Decks préconstruits</span>
+              </NuxtLink>
+              <NuxtLink to="/compare" :class="{ 'mobile-nav-active': route.path.startsWith('/compare') }" @click="isMobileMenuOpen = false">
+                <span class="nav-icon">⚖️</span>
+                <span>Comparateur</span>
               </NuxtLink>
               <NuxtLink to="/market" :class="{ 'mobile-nav-active': route.path.startsWith('/market') }" @click="isMobileMenuOpen = false">
                 <span class="nav-icon">📊</span>
