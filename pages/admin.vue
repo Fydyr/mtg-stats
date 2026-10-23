@@ -39,6 +39,7 @@ const rows = ref<{
 const loading = ref(false)
 const syncingSheet = ref(false)
 const syncingEv = ref(false)
+const syncingImages = ref(false)
 const sheetUrl = ref('https://docs.google.com/spreadsheets/d/1668tbtGyFHhB-x3c9b7ft546PK3fsKMR8eK7iLCh0ps')
 const toast = ref<{ msg: string; error?: boolean } | null>(null)
 const searchFilter = ref('')
@@ -211,6 +212,20 @@ async function syncEv() {
     notify(e?.statusMessage || 'Erreur lors de la synchronisation des EV', true)
   } finally {
     syncingEv.value = false
+  }
+}
+
+async function syncImages() {
+  syncingImages.value = true
+  try {
+    const res = await $fetch<{ ok: boolean; updated: number; totalWithImage: number; totalProducts: number }>('/api/admin/sync-images', {
+      method: 'POST'
+    })
+    notify(`Synchronisation des visuels réussie : ${res.updated} nouveaux visuels associés (${res.totalWithImage}/${res.totalProducts} produits illustrés) !`)
+  } catch (e: any) {
+    notify(e?.statusMessage || 'Erreur lors de la synchronisation des images', true)
+  } finally {
+    syncingImages.value = false
   }
 }
 
@@ -549,6 +564,9 @@ useSeoMeta({
         </button>
       </div>
       <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn ghost" :disabled="syncingImages" title="Télécharge et associe automatiquement les visuels officiels depuis MTGJSON / TCGplayer" @click="syncImages">
+          {{ syncingImages ? 'Synchro Images...' : '🖼️ Synchroniser Images' }}
+        </button>
         <button class="btn ghost" :disabled="syncingEv" title="Récupère les Expected Values calculées depuis Dawnglare / TCG" @click="syncEv">
           {{ syncingEv ? 'Synchro EV...' : 'Synchroniser EV' }}
         </button>
