@@ -19,17 +19,17 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.0",
+    "@prisma/client": "^7.10.1",
     "chart.js": "^4.4.7",
     "croner": "^10.0.1",
-    "nuxt": "^3.17.0",
+    "nuxt": "^4.6.2",
     "vue": "^3.5.0",
     "vue-chartjs": "^5.3.2",
-    "vue-router": "^4.5.0"
+    "vue-router": "^5.4.0"
   },
   "devDependencies": {
-    "prisma": "^6.19.0",
+    "prisma": "^8.0.0-rc.27",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^7.0.2"
   }
 }
