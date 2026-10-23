@@ -28,6 +28,8 @@ export default defineEventHandler(async (event) => {
       type: p.type,
       deckType: (p as any).deckType || null,
       releaseDate: p.releaseDate ? p.releaseDate.toISOString().slice(0, 10) : null,
+      standardLegalUntil: p.standardLegalUntil ? p.standardLegalUntil.toISOString().slice(0, 10) : '',
+      stock: p.stock ?? null,
       cardmarketUrl: p.cardmarketUrl ?? '',
       price: Number(currentSnap?.price ?? NaN),
       ev: currentSnap?.ev != null ? Number(currentSnap.ev) : null,

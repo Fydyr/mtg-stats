@@ -10,6 +10,9 @@ type Body = {
     cardmarketUrl?: string
     type?: BoosterType
     releaseDate?: string | null
+    standardLegalUntil?: string | null
+    isOutOfPrint?: boolean | null
+    stock?: number | null
   }[]
 }
 
@@ -34,17 +37,31 @@ export default defineEventHandler(async (event) => {
     if (url && !CM_RE.test(url)) {
       throw createError({ statusCode: 400, statusMessage: 'Le lien doit commencer par https://www.cardmarket.com/' })
     }
-    if (p.cardmarketUrl !== undefined || p.type !== undefined || p.releaseDate !== undefined) {
+    if (
+      p.cardmarketUrl !== undefined ||
+      p.type !== undefined ||
+      p.releaseDate !== undefined ||
+      p.standardLegalUntil !== undefined ||
+      p.isOutOfPrint !== undefined ||
+      p.stock !== undefined
+    ) {
       let rDate: Date | null | undefined = undefined
       if (p.releaseDate !== undefined) {
         rDate = p.releaseDate ? new Date(p.releaseDate) : null
+      }
+      let sDate: Date | null | undefined = undefined
+      if (p.standardLegalUntil !== undefined) {
+        sDate = p.standardLegalUntil ? new Date(p.standardLegalUntil) : null
       }
       extra.push(prisma.product.update({
         where: { id: productId },
         data: {
           ...(p.cardmarketUrl !== undefined ? { cardmarketUrl: url || null } : {}),
           ...(p.type && p.type in BoosterType ? { type: p.type } : {}),
-          ...(p.releaseDate !== undefined ? { releaseDate: rDate } : {})
+          ...(p.releaseDate !== undefined ? { releaseDate: rDate } : {}),
+          ...(p.standardLegalUntil !== undefined ? { standardLegalUntil: sDate } : {}),
+          ...(p.isOutOfPrint !== undefined ? { isOutOfPrint: p.isOutOfPrint } : {}),
+          ...(p.stock !== undefined ? { stock: p.stock != null ? Number(p.stock) : null } : {})
         }
       }))
     }

@@ -6,7 +6,10 @@ type Item = {
   type: string
   deckType?: 'COMMANDER' | 'CHALLENGER' | 'STARTER' | 'OTHER' | null
   releaseDate: string | null
+  standardLegalUntil?: string | null
+  stock?: number | null
   cardmarket: string
+  imageUrl?: string | null
   price: number | null
   ev: number | null
   previous: number | null
@@ -26,6 +29,8 @@ const { getIcon } = useSetIcons()
 const search = ref('')
 const type = ref('ALL')
 const deckType = ref('ALL')
+const era = ref('ALL')
+const priceRange = ref('ALL')
 const onlyProfitable = ref(false)
 const viewMode = ref<'table' | 'grid'>('table')
 const sortKey = ref<keyof Item>('var1m')
@@ -59,6 +64,62 @@ const DECK_TYPES = [
   { v: 'OTHER', l: 'Autres' }
 ]
 
+const currentYear = new Date().getFullYear()
+const standardCutoffYear = currentYear - 3
+
+const ERAS = [
+  { v: 'ALL', l: 'Toutes les ères' },
+  { v: 'STANDARD', l: 'Standard (en cours & configuré)' },
+  { v: 'PIONEER', l: 'Pioneer (depuis 2012)' },
+  { v: 'MODERN', l: 'Modern (2003-2012)' },
+  { v: 'VINTAGE', l: 'Vintage (< 2003)' },
+  { v: 'MASTERS', l: 'Masters & Horizons' }
+] as const
+
+const PRICE_RANGES = [
+  { v: 'ALL', l: 'Tous les prix' },
+  { v: 'UNDER_100', l: '< 100 €' },
+  { v: '100_250', l: '100 - 250 €' },
+  { v: '250_500', l: '250 - 500 €' },
+  { v: 'OVER_500', l: '> 500 €' }
+] as const
+
+function matchesEra(item: Item, eraVal: string): boolean {
+  if (eraVal === 'ALL') return true
+  const lowerName = item.name.toLowerCase()
+  const isMasters = lowerName.includes('masters') || lowerName.includes('horizons') || lowerName.includes('remastered')
+  if (eraVal === 'MASTERS') return isMasters
+
+  // Détermination de la légalité Standard :
+  // 1. Si standardLegalUntil est renseigné (ex: configuré dans l'admin pour Foundations jusqu'en 2029)
+  // 2. Sinon, règle par défaut : sorties des 3 dernières années, hors Masters
+  const isCurrentlyStandard = item.standardLegalUntil
+    ? new Date() <= new Date(item.standardLegalUntil)
+    : !item.releaseDate
+      ? true
+      : (new Date(item.releaseDate).getFullYear() >= standardCutoffYear && !isMasters)
+
+  if (eraVal === 'STANDARD') return isCurrentlyStandard
+
+  if (!item.releaseDate) return true
+  const y = new Date(item.releaseDate).getFullYear()
+
+  if (eraVal === 'PIONEER') return y >= 2012 && !isCurrentlyStandard && !isMasters
+  if (eraVal === 'MODERN') return y >= 2003 && y < 2012 && !isMasters
+  if (eraVal === 'VINTAGE') return y < 2003
+  return true
+}
+
+function matchesPriceRange(price: number | null, rangeVal: string): boolean {
+  if (rangeVal === 'ALL') return true
+  if (price == null) return false
+  if (rangeVal === 'UNDER_100') return price < 100
+  if (rangeVal === '100_250') return price >= 100 && price <= 250
+  if (rangeVal === '250_500') return price > 250 && price <= 500
+  if (rangeVal === 'OVER_500') return price > 500
+  return true
+}
+
 const items = computed(() => {
   return (data.value?.items ?? []).map((i) => ({
     ...i,
@@ -73,6 +134,10 @@ const rows = computed(() => {
     if (i.price == null) return false
     if (i.category !== props.category) return false
     if (!i.name.toLowerCase().includes(q)) return false
+
+    // Filtres généraux (Ère, Tranches de prix)
+    if (!matchesEra(i, era.value)) return false
+    if (!matchesPriceRange(i.price, priceRange.value)) return false
 
     if (props.category === 'PRECON_DECK') {
       if (deckType.value !== 'ALL' && (i.deckType || 'OTHER') !== deckType.value) return false
@@ -227,6 +292,7 @@ function exportCsv() {
     </NuxtLink>
   </section>
 
+  <!-- BARRE D'OUTILS ET FILTRES -->
   <div class="toolbar" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
     <input
       id="search"
@@ -294,12 +360,46 @@ function exportCsv() {
     </div>
   </div>
 
+  <!-- FILTRES AVANCÉS (Ères, Tranches de prix) -->
+  <div class="advanced-filters card">
+    <div class="filter-group">
+      <span class="filter-group-label">Ère / Format :</span>
+      <div class="chips">
+        <button
+          v-for="e in ERAS"
+          :key="e.v"
+          class="chip filter-sm"
+          :class="{ active: era === e.v }"
+          @click="era = e.v"
+        >
+          {{ e.l }}
+        </button>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <span class="filter-group-label">Tranche de prix :</span>
+      <div class="chips">
+        <button
+          v-for="p in PRICE_RANGES"
+          :key="p.v"
+          class="chip filter-sm"
+          :class="{ active: priceRange === p.v }"
+          @click="priceRange = p.v"
+        >
+          {{ p.l }}
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- VUE TABLEAU -->
   <div v-if="viewMode === 'table'" class="card table-wrap">
     <table>
       <thead>
         <tr>
           <th class="checkbox-cell" style="width: 36px;"></th>
+          <th style="width: 48px; text-align: center;">Visuel</th>
           <th @click="sortBy('name')">
             {{ category === 'PRECON_DECK' ? 'Deck / Produit' : 'Édition' }}
             <span v-if="sortKey === 'name'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
@@ -313,6 +413,9 @@ function exportCsv() {
           </th>
           <th class="num" style="width: 105px;" @click="sortBy('price')">
             Prix <span v-if="sortKey === 'price'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+          </th>
+          <th class="num" style="width: 85px;" @click="sortBy('stock')">
+            Stock <span v-if="sortKey === 'stock'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
           </th>
           <th class="num" style="width: 105px;" @click="sortBy('ev')">
             EV <span v-if="sortKey === 'ev'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
@@ -344,6 +447,26 @@ function exportCsv() {
               @change="toggleSelect(r.id)"
             />
           </td>
+          <!-- VISUEL MINIATURE -->
+          <td style="text-align: center; padding: 6px 8px;">
+            <div class="row-thumb-wrap">
+              <img
+                v-if="r.imageUrl"
+                :src="r.imageUrl"
+                :alt="r.name"
+                class="row-thumb"
+                loading="lazy"
+              />
+              <img
+                v-else-if="getIcon(r.name)?.icon"
+                :src="getIcon(r.name)!.icon"
+                :alt="getIcon(r.name)!.code"
+                class="set-icon"
+                loading="lazy"
+              />
+              <span v-else class="muted" style="font-size: 0.75rem;">📦</span>
+            </div>
+          </td>
           <td class="name-cell">
             <div class="name-with-icon">
               <img
@@ -365,6 +488,12 @@ function exportCsv() {
           </td>
           <td class="muted">{{ year(r.releaseDate) }}</td>
           <td class="num" style="font-weight: 700; font-size: 0.95rem;">{{ eur(r.price) }}</td>
+          <td class="num" style="font-size: 0.85rem; font-weight: 600;">
+            <span v-if="r.stock != null" :style="{ color: r.stock > 0 ? '#4cb782' : 'var(--muted)' }">
+              {{ r.stock }}
+            </span>
+            <span v-else class="muted">-</span>
+          </td>
           <td class="num" style="font-weight: 600; color: #7aa7ff;">{{ eur(r.ev) }}</td>
           <td class="num">
             <span
@@ -393,7 +522,7 @@ function exportCsv() {
           </td>
         </tr>
         <tr v-if="!rows.length">
-          <td colspan="11" class="muted" style="text-align:center; padding:40px;">Aucun résultat pour cette catégorie</td>
+          <td colspan="13" class="muted" style="text-align:center; padding:40px;">Aucun résultat pour ces filtres</td>
         </tr>
       </tbody>
     </table>
@@ -402,7 +531,28 @@ function exportCsv() {
   <!-- VUE GRILLE DE CARTES -->
   <div v-else class="cards-grid">
     <div v-for="r in rows" :key="r.id" class="product-card">
-      <div>
+      <!-- IMAGE VISUEL GRILLE -->
+      <NuxtLink :to="`/products/${r.id}`" class="product-card-image-box">
+        <img
+          v-if="r.imageUrl"
+          :src="r.imageUrl"
+          :alt="r.name"
+          class="product-card-cover"
+          loading="lazy"
+        />
+        <div v-else class="product-card-placeholder">
+          <img
+            v-if="getIcon(r.name)?.icon"
+            :src="getIcon(r.name)!.icon"
+            :alt="getIcon(r.name)!.code"
+            class="set-icon-large"
+            loading="lazy"
+          />
+          <span v-else style="font-size: 2rem;">📦</span>
+        </div>
+      </NuxtLink>
+
+      <div class="product-card-main">
         <div class="product-card-header">
           <div style="display:flex; align-items:center; gap:8px;">
             <input
@@ -413,14 +563,6 @@ function exportCsv() {
               title="Sélectionner pour comparer"
               @change="toggleSelect(r.id)"
             />
-            <img
-              v-if="getIcon(r.name)?.icon"
-              :src="getIcon(r.name)!.icon"
-              :title="getIcon(r.name)!.code"
-              :alt="getIcon(r.name)!.code"
-              class="set-icon"
-              loading="lazy"
-            />
             <span v-if="r.category === 'PRECON_DECK'" class="badge" :class="`badge-${(r.deckType || 'other').toLowerCase()}`">
               {{ r.deckType || 'DECK' }}
             </span>
@@ -429,50 +571,53 @@ function exportCsv() {
           <span class="muted" style="font-size:0.75rem;">{{ year(r.releaseDate) }}</span>
         </div>
         <NuxtLink class="product-card-title" :to="`/products/${r.id}`">{{ r.name }}</NuxtLink>
-      </div>
 
-      <div class="product-card-body">
-        <div class="product-card-price-row">
-          <div>
-            <span style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; display:block;">
-              {{ r.category === 'PRECON_DECK' ? 'Prix deck' : r.category === 'SINGLE_BOOSTER' ? 'Prix booster' : 'Prix boîte' }}
-            </span>
-            <span class="product-card-price">{{ eur(r.price) }}</span>
+        <div class="product-card-body">
+          <div class="product-card-price-row">
+            <div>
+              <span style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; display:block;">
+                {{ r.category === 'PRECON_DECK' ? 'Prix deck' : r.category === 'SINGLE_BOOSTER' ? 'Prix booster' : 'Prix boîte' }}
+              </span>
+              <span class="product-card-price">{{ eur(r.price) }}</span>
+            </div>
+            <div style="text-align:right;">
+              <span style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; display:block;">1 mois</span>
+              <span class="tag-var" :class="cls(r.var1m)">{{ pct(r.var1m) }}</span>
+            </div>
           </div>
-          <div style="text-align:right;">
-            <span style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; display:block;">1 mois</span>
-            <span class="tag-var" :class="cls(r.var1m)">{{ pct(r.var1m) }}</span>
-          </div>
-        </div>
 
-        <div class="product-card-extra">
-          <span>EV : <strong style="color: #7aa7ff;">{{ eur(r.ev) }}</strong></span>
-          <span>
-            Ratio :
-            <span
-              v-if="r.evRatio != null"
-              class="tag-var"
-              :class="r.evRatio >= 100 ? 'up' : 'muted'"
-              style="font-size:0.75rem; padding:1px 5px;"
-            >
-              {{ r.evRatio }} %
+          <div class="product-card-extra">
+            <span>EV : <strong style="color: #7aa7ff;">{{ eur(r.ev) }}</strong></span>
+            <span v-if="r.stock != null">
+              Stock : <strong :style="{ color: r.stock > 0 ? '#4cb782' : 'var(--muted)' }">{{ r.stock }}</strong>
             </span>
-            <span v-else class="muted">-</span>
-          </span>
-        </div>
+            <span>
+              Ratio :
+              <span
+                v-if="r.evRatio != null"
+                class="tag-var"
+                :class="r.evRatio >= 100 ? 'up' : 'muted'"
+                style="font-size:0.75rem; padding:1px 5px;"
+              >
+                {{ r.evRatio }} %
+              </span>
+              <span v-else class="muted">-</span>
+            </span>
+          </div>
 
-        <div class="product-card-footer">
-          <NuxtLink :to="`/products/${r.id}`" class="btn ghost" style="padding:5px 12px; font-size:0.8rem;">
-            Graphique
-          </NuxtLink>
-          <a class="cm-link" :href="r.cardmarket" target="_blank" rel="noopener noreferrer">
-            Cardmarket ↗
-          </a>
+          <div class="product-card-footer">
+            <NuxtLink :to="`/products/${r.id}`" class="btn ghost" style="padding:5px 12px; font-size:0.8rem;">
+              Graphique
+            </NuxtLink>
+            <a class="cm-link" :href="r.cardmarket" target="_blank" rel="noopener noreferrer">
+              Cardmarket ↗
+            </a>
+          </div>
         </div>
       </div>
     </div>
     <div v-if="!rows.length" class="card muted" style="grid-column: 1 / -1; text-align:center; padding:40px;">
-      Aucun résultat
+      Aucun résultat pour ces critères
     </div>
   </div>
 
@@ -498,4 +643,97 @@ function exportCsv() {
       </div>
     </div>
   </div>
+
 </template>
+
+<style scoped>
+.advanced-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  background: rgba(26, 27, 30, 0.6);
+  border: 1px solid var(--border);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-group-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 120px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.filter-sm {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  border-radius: 6px;
+}
+
+.row-thumb-wrap {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  margin: 0 auto;
+}
+
+.row-thumb {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.product-card-image-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 160px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border);
+  padding: 12px;
+  overflow: hidden;
+  text-decoration: none;
+}
+
+.product-card-cover {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transition: transform .25s ease;
+}
+
+.product-card:hover .product-card-cover {
+  transform: scale(1.08);
+}
+
+.product-card-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+}
+
+.product-card-main {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+</style>

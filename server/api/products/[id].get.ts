@@ -15,7 +15,10 @@ export default defineEventHandler(async (event) => {
     type: product.type,
     deckType: (product as any).deckType || null,
     releaseDate: product.releaseDate,
+    standardLegalUntil: product.standardLegalUntil ? product.standardLegalUntil.toISOString().slice(0, 10) : null,
+    stock: product.stock ?? null,
     cardmarket: cardmarketLink(product.name, product.type, product.cardmarketUrl, (product as any).category),
+    imageUrl: product.imageUrl || null,
     history: product.prices.map((s) => ({
       month: s.month,
       price: Number(s.price),

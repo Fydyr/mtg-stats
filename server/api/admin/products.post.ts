@@ -21,6 +21,9 @@ export default defineEventHandler(async (event) => {
   if (releaseDate && Number.isNaN(releaseDate.getTime())) {
     throw createError({ statusCode: 400, statusMessage: 'Date invalide' })
   }
+  const standardLegalUntil = (body as any).standardLegalUntil ? new Date((body as any).standardLegalUntil) : null
+  const isOutOfPrint = typeof (body as any).isOutOfPrint === 'boolean' ? (body as any).isOutOfPrint : null
+  const stock = (body as any).stock != null && !isNaN(Number((body as any).stock)) ? Number((body as any).stock) : null
 
   try {
     const p = await prisma.product.create({
@@ -29,7 +32,10 @@ export default defineEventHandler(async (event) => {
         category: category as any,
         type,
         deckType: deckType as any,
-        releaseDate
+        releaseDate,
+        standardLegalUntil,
+        isOutOfPrint,
+        stock
       }
     })
     return { id: p.id }

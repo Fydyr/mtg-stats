@@ -28,8 +28,12 @@ const route = useRoute()
     </main>
 
     <footer class="site-footer">
-      <div class="container footer-container" :class="{ 'container-fluid': route.path.startsWith('/admin') }">
-        <p>MTG Stats · Suivi mensuel des prix des boosters scellés Magic: The Gathering (marché européen)</p>
+      <div class="container footer-container" :class="{ 'container-fluid': route.path.startsWith('/admin') }" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <p style="margin:0;">MTG Stats · Suivi mensuel des prix des scellés Magic: The Gathering (marché européen)</p>
+        <div class="footer-links" style="display:flex; gap:16px; align-items:center;">
+          <NuxtLink to="/legal" style="color:var(--muted); font-size:0.85rem;">Mentions légales</NuxtLink>
+          <a href="https://enzo-f.aeroliths.fr" target="_blank" rel="noopener noreferrer" style="color:var(--muted); font-size:0.85rem;">Portfolio ↗</a>
+        </div>
       </div>
     </footer>
   </div>

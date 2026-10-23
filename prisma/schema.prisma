@@ -35,9 +35,13 @@ model Product {
   category      ProductCategory @default(BOOSTER_BOX)
   type          BoosterType     @default(DRAFT)
   deckType      DeckType?
-  releaseDate   DateTime?
+  releaseDate        DateTime?
+  standardLegalUntil DateTime?
+  isOutOfPrint       Boolean?
+  stock              Int?
   /// URL exacte de la fiche Cardmarket (sinon : lien de recherche généré)
-  cardmarketUrl String?
+  cardmarketUrl      String?
+  imageUrl           String?
   createdAt     DateTime        @default(now())
   prices        PriceSnapshot[]
 

@@ -181,7 +181,14 @@ useSeoMeta({
           <div v-for="item in top5Gainers" :key="item.id" class="mini-row">
             <div class="mini-row-info">
               <img
-                v-if="getIcon(item.name)?.icon"
+                v-if="item.imageUrl"
+                :src="item.imageUrl"
+                :alt="item.name"
+                class="mini-row-thumb"
+                loading="lazy"
+              />
+              <img
+                v-else-if="getIcon(item.name)?.icon"
                 :src="getIcon(item.name)!.icon"
                 :alt="getIcon(item.name)!.code"
                 class="set-icon"
@@ -212,7 +219,14 @@ useSeoMeta({
           <div v-for="item in top5EvOpportunities" :key="item.id" class="mini-row">
             <div class="mini-row-info">
               <img
-                v-if="getIcon(item.name)?.icon"
+                v-if="item.imageUrl"
+                :src="item.imageUrl"
+                :alt="item.name"
+                class="mini-row-thumb"
+                loading="lazy"
+              />
+              <img
+                v-else-if="getIcon(item.name)?.icon"
                 :src="getIcon(item.name)!.icon"
                 :alt="getIcon(item.name)!.code"
                 class="set-icon"
@@ -385,6 +399,14 @@ useSeoMeta({
   align-items: center;
   gap: 10px;
   min-width: 0;
+}
+
+.mini-row-thumb {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .mini-row-title {

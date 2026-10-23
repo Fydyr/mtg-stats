@@ -7,7 +7,8 @@ Chart.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip, F
 const route = useRoute()
 const { data, error } = await useFetch<{
   id: number; name: string; category?: string; type: string; deckType?: string | null
-  releaseDate: string | null; cardmarket: string
+  releaseDate: string | null; standardLegalUntil?: string | null; stock?: number | null; cardmarket: string
+  imageUrl?: string | null
   history: { month: string; price: number; ev: number | null }[]
 }>(`/api/products/${route.params.id}`)
 
@@ -173,31 +174,45 @@ useSeoMeta({
 
 <template>
   <NuxtLink :to="data?.category === 'PRECON_DECK' ? '/decks' : data?.category === 'SINGLE_BOOSTER' ? '/boosters' : '/boxes'" class="back">← Retour au catalogue</NuxtLink>
-  <section class="hero">
-    <h1 style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+  <section class="hero product-hero">
+    <div v-if="data?.imageUrl" class="product-hero-image-wrap">
       <img
-        v-if="getIcon(data?.name ?? '')?.icon"
-        :src="getIcon(data?.name ?? '')!.icon"
-        :alt="getIcon(data?.name ?? '')!.code"
-        :title="getIcon(data?.name ?? '')!.code"
-        class="set-icon-large"
+        :src="data.imageUrl.replace('_200w.jpg', '_400w.jpg')"
+        :alt="data.name"
+        class="product-hero-image"
       />
-      <span>{{ data?.name }}</span>
-    </h1>
-    <p>
-      <span v-if="data?.category === 'PRECON_DECK'" class="badge" :class="`badge-${(data?.deckType || 'other').toLowerCase()}`">
-        {{ data?.deckType || 'DECK' }}
-      </span>
-      <span v-else class="badge" :class="`badge-${data?.type.toLowerCase()}`">
-        {{ data?.category === 'SINGLE_BOOSTER' ? `Booster ${data?.type}` : `Boîte ${data?.type}` }}
-      </span>
-      <span v-if="data?.releaseDate"> · sorti en {{ new Date(data.releaseDate).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) }}</span>
-    </p>
-    <p style="margin-top:14px"><a class="btn" :href="data?.cardmarket" target="_blank" rel="noopener noreferrer">Voir sur Cardmarket ↗</a></p>
+    </div>
+    <div class="product-hero-info">
+      <h1 style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+        <img
+          v-if="getIcon(data?.name ?? '')?.icon"
+          :src="getIcon(data?.name ?? '')!.icon"
+          :alt="getIcon(data?.name ?? '')!.code"
+          :title="getIcon(data?.name ?? '')!.code"
+          class="set-icon-large"
+        />
+        <span>{{ data?.name }}</span>
+      </h1>
+      <p>
+        <span v-if="data?.category === 'PRECON_DECK'" class="badge" :class="`badge-${(data?.deckType || 'other').toLowerCase()}`">
+          {{ data?.deckType || 'DECK' }}
+        </span>
+        <span v-else class="badge" :class="`badge-${data?.type.toLowerCase()}`">
+          {{ data?.category === 'SINGLE_BOOSTER' ? `Booster ${data?.type}` : `Boîte ${data?.type}` }}
+        </span>
+        <span v-if="data?.releaseDate"> · sorti en {{ new Date(data.releaseDate).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) }}</span>
+      </p>
+      <p style="margin-top:14px"><a class="btn" :href="data?.cardmarket" target="_blank" rel="noopener noreferrer">Voir sur Cardmarket ↗</a></p>
+    </div>
   </section>
 
   <section class="stats">
     <div class="card stat"><div class="label">Prix actuel</div><div class="value">{{ last ?? '-' }} €</div></div>
+    <div v-if="data?.stock != null" class="card stat">
+      <div class="label">Stock disponible</div>
+      <div class="value" :style="{ color: data.stock > 0 ? '#4cb782' : 'var(--muted)' }">{{ data.stock }}</div>
+      <div class="sub">{{ data.stock > 0 ? 'En vente sur Cardmarket' : 'Rupture' }}</div>
+    </div>
     <div v-if="lastEv != null" class="card stat">
       <div class="label">EV estimée</div>
       <div class="value" style="color: #7aa7ff;">{{ lastEv }} €</div>
@@ -235,3 +250,44 @@ useSeoMeta({
     <div class="chart-box"><ClientOnly><Line :data="chartData" :options="options" /></ClientOnly></div>
   </div>
 </template>
+
+<style scoped>
+.product-hero {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.product-hero-image-wrap {
+  flex-shrink: 0;
+  width: 140px;
+  height: 140px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transition: transform .2s ease;
+}
+
+.product-hero-image-wrap:hover {
+  transform: scale(1.05);
+  border-color: var(--accent);
+}
+
+.product-hero-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.product-hero-info {
+  flex: 1;
+  min-width: 260px;
+}
+</style>

@@ -217,6 +217,9 @@ export default defineEventHandler(async (event) => {
       const trendIdx = header.findIndex((h) => h === 'trendprice' || h === 'trend')
       const lowIdx = header.findIndex((h) => h === 'lowprice' || h === 'low')
       const avgIdx = header.findIndex((h) => h === 'avgsell' || h === 'avg')
+      const stockIdx = header.findIndex((h) =>
+        h === 'countarticles' || h === 'articles' || h === 'amount' || h === 'stock' || h === 'available' || h === 'quantite' || h === 'disponible'
+      )
 
       if (idIdx !== -1) {
         // Pré-charger tous les produits ayant un cardmarketId
@@ -236,6 +239,19 @@ export default defineEventHandler(async (event) => {
 
           const productId = productMap.get(cardmarketId)
           if (!productId) continue
+
+          if (stockIdx !== -1) {
+            const rawStock = row[stockIdx]?.replace(/\D/g, '')
+            if (rawStock) {
+              const stockNum = parseInt(rawStock, 10)
+              if (!isNaN(stockNum)) {
+                await prisma.product.update({
+                  where: { id: productId },
+                  data: { stock: stockNum }
+                })
+              }
+            }
+          }
 
           let chosenPrice: number | null = null
           const rawTrend = trendIdx !== -1 ? row[trendIdx]?.replace(',', '.') : null

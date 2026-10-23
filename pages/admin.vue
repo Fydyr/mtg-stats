@@ -4,12 +4,20 @@ type Row = {
   name: string
   type: string
   releaseDate: string | null
+  standardLegalUntil?: string | null
+  stock?: number | null
   price: number
   ev: number | null
   previous: number
   cardmarketUrl: string
 }
-type Form = { name: string; type: string; releaseDate: string }
+type Form = {
+  name: string
+  type: string
+  releaseDate: string
+  standardLegalUntil: string
+  stock: string
+}
 
 const { data: me, refresh: refreshMe } = await useFetch<{ admin: boolean }>('/api/admin/me')
 
@@ -20,6 +28,8 @@ const rows = ref<{
   name: string
   type: string
   releaseDate: string
+  standardLegalUntil: string
+  stockValue: string
   previous: number | null
   value: string
   evValue: string
@@ -36,7 +46,13 @@ const typeFilter = ref('ALL')
 const showBulkPaste = ref(false)
 const bulkText = ref('')
 
-const newProduct = reactive<Form>({ name: '', type: 'DRAFT', releaseDate: '' })
+const newProduct = reactive<Form>({
+  name: '',
+  type: 'DRAFT',
+  releaseDate: '',
+  standardLegalUntil: '',
+  stock: ''
+})
 
 const cmFiles = ref<File[]>([])
 const cmMonth = ref(new Date().toISOString().slice(0, 7))
@@ -154,6 +170,8 @@ async function load() {
       name: r.name,
       type: r.type,
       releaseDate: r.releaseDate || '',
+      standardLegalUntil: r.standardLegalUntil || '',
+      stockValue: r.stock != null ? String(r.stock) : '',
       cardmarketUrl: r.cardmarketUrl,
       previous: Number.isNaN(r.previous) ? null : r.previous,
       value: Number.isNaN(r.price) ? '' : String(r.price),
@@ -202,12 +220,14 @@ async function save() {
       productId: r.id,
       type: r.type as any,
       releaseDate: r.releaseDate || null,
+      standardLegalUntil: r.standardLegalUntil || null,
+      stock: r.stockValue.trim() === '' ? null : Number(r.stockValue),
       cardmarketUrl: r.cardmarketUrl,
       price: r.value.trim() === '' ? null : Number(r.value.replace(',', '.')),
       ev: r.evValue.trim() === '' ? null : Number(r.evValue.replace(',', '.'))
     }))
     await $fetch('/api/admin/prices', { method: 'PUT', body: { month: month.value, prices } })
-    notify('Prix, EV et modifications enregistrés avec succès')
+    notify('Prix, EV, stock et modifications enregistrés avec succès')
   } catch (e: any) {
     notify(e?.statusMessage || "Erreur lors de l'enregistrement", true)
   }
@@ -224,9 +244,17 @@ async function addProduct() {
   try {
     await $fetch('/api/admin/products', {
       method: 'POST',
-      body: { ...newProduct, releaseDate: newProduct.releaseDate || null }
+      body: {
+        ...newProduct,
+        releaseDate: newProduct.releaseDate || null,
+        standardLegalUntil: newProduct.standardLegalUntil || null,
+        stock: newProduct.stock.trim() === '' ? null : Number(newProduct.stock)
+      }
     })
     newProduct.name = ''
+    newProduct.releaseDate = ''
+    newProduct.standardLegalUntil = ''
+    newProduct.stock = ''
     notify('Boîte ajoutée avec succès')
     await load()
   } catch (e: any) {
@@ -441,15 +469,31 @@ useSeoMeta({
         <h3 style="margin-bottom:12px">Ajouter une boîte</h3>
         <div style="display:grid; gap:10px;">
           <input v-model="newProduct.name" class="input" placeholder="Nom de l'édition (ex: Modern Horizons 3)" />
-          <div style="display:flex; gap:10px;">
-            <select v-model="newProduct.type" class="input" style="flex:1;">
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <select v-model="newProduct.type" class="input" style="flex:1; min-width:110px;">
               <option value="DRAFT">DRAFT</option>
               <option value="SET">SET</option>
               <option value="PLAY">PLAY</option>
               <option value="COLLECTOR">COLLECTOR</option>
               <option value="OTHER">AUTRES</option>
             </select>
-            <input v-model="newProduct.releaseDate" type="date" class="input" style="flex:1;" />
+            <input v-model="newProduct.releaseDate" type="date" class="input" style="flex:1; min-width:130px;" title="Date de sortie" />
+            <input
+              v-model="newProduct.standardLegalUntil"
+              type="date"
+              class="input"
+              style="flex:1; min-width:130px;"
+              title="Légalité Standard jusqu'au (optionnel, ex: 2029-12-31 pour Foundations)"
+            />
+            <input
+              v-model="newProduct.stock"
+              type="number"
+              min="0"
+              class="input"
+              style="flex:1; min-width:110px;"
+              placeholder="Stock (ex: 120)"
+              title="Quantité en stock disponible"
+            />
           </div>
           <button class="btn" :disabled="!newProduct.name.trim()" @click="addProduct">Ajouter la boîte</button>
         </div>
@@ -521,6 +565,8 @@ useSeoMeta({
           <col />
           <col style="width: 86px;" />
           <col style="width: 114px;" />
+          <col style="width: 110px;" />
+          <col style="width: 80px;" />
           <col style="width: 78px;" />
           <col style="width: 82px;" />
           <col style="width: 82px;" />
@@ -533,6 +579,8 @@ useSeoMeta({
             <th>Édition</th>
             <th>Type</th>
             <th>Date sortie</th>
+            <th title="Fin de légalité en format Standard (ex: 2029 pour Foundations). Laisser vide pour la règle automatique standard (3 ans).">Fin Standard</th>
+            <th class="num" title="Quantité disponible / stock d'articles">Stock</th>
             <th class="num">Mois préc.</th>
             <th class="num">Prix (€)</th>
             <th class="num">EV (€)</th>
@@ -567,6 +615,30 @@ useSeoMeta({
                 class="input"
                 style="padding: 2px 4px; font-size: 0.7rem; width: 100%; color-scheme: dark; box-sizing: border-box;"
                 title="Date de sortie de l'édition"
+              />
+            </td>
+
+            <!-- Fin Standard -->
+            <td>
+              <input
+                v-model="r.standardLegalUntil"
+                type="date"
+                class="input"
+                style="padding: 2px 4px; font-size: 0.7rem; width: 100%; color-scheme: dark; box-sizing: border-box;"
+                title="Date jusqu'à laquelle l'édition est légale en Standard (laisser vide pour la règle par défaut des 3 ans)"
+              />
+            </td>
+
+            <!-- Stock disponible -->
+            <td class="num">
+              <input
+                v-model="r.stockValue"
+                type="number"
+                min="0"
+                class="input admin-input"
+                placeholder="—"
+                style="width: 60px; padding: 3px 5px; text-align: right; font-weight: 500; font-size: 0.78rem;"
+                title="Stock disponible"
               />
             </td>
 
@@ -655,7 +727,7 @@ useSeoMeta({
             </td>
           </tr>
           <tr v-if="!filteredRows.length">
-            <td colspan="9" class="muted" style="text-align: center; padding: 40px;">
+            <td colspan="11" class="muted" style="text-align: center; padding: 40px;">
               Aucune boîte trouvée. Cliquez sur <strong>"Synchroniser Cardmarket"</strong> ou <strong>"Synchroniser depuis le Google Sheet"</strong> !
             </td>
           </tr>
