@@ -247,6 +247,12 @@ function exportCsv() {
   a.click()
   URL.revokeObjectURL(url)
 }
+
+onMounted(() => {
+  if (typeof window !== 'undefined' && window.innerWidth < 768) {
+    viewMode.value = 'grid'
+  }
+})
 </script>
 
 <template>
@@ -381,7 +387,7 @@ function exportCsv() {
   <div class="advanced-filters card">
     <div class="filter-group">
       <span class="filter-group-label">Ère / Format :</span>
-      <div class="chips">
+      <div class="chips filter-chips">
         <button
           v-for="e in ERAS"
           :key="e.v"
@@ -396,7 +402,7 @@ function exportCsv() {
 
     <div class="filter-group">
       <span class="filter-group-label">Tranche de prix :</span>
-      <div class="chips">
+      <div class="chips filter-chips">
         <button
           v-for="p in PRICE_RANGES"
           :key="p.v"
@@ -411,6 +417,7 @@ function exportCsv() {
   </div>
 
   <!-- VUE TABLEAU -->
+  <div v-if="viewMode === 'table'" class="mobile-table-hint muted">↔ Faites glisser le tableau horizontalement pour voir toutes les colonnes</div>
   <div v-if="viewMode === 'table'" class="card table-wrap">
     <table>
       <thead>
@@ -667,11 +674,15 @@ function exportCsv() {
 .advanced-filters {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   padding: 14px 18px;
   margin-bottom: 18px;
   background: rgba(26, 27, 30, 0.6);
   border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .filter-group {
@@ -679,21 +690,48 @@ function exportCsv() {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
 }
 
 .filter-group-label {
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 700;
   color: var(--muted);
-  min-width: 120px;
+  min-width: 130px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.filter-chips {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px;
+  flex: 1;
+  max-width: 100%;
 }
 
 .filter-sm {
-  padding: 4px 10px;
+  padding: 5px 11px;
   font-size: 0.8rem;
   border-radius: 6px;
+  white-space: normal;
+}
+
+@media (max-width: 900px) {
+  .filter-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .filter-group-label {
+    min-width: 0;
+    font-size: 0.72rem;
+  }
+  .filter-chips {
+    width: 100%;
+  }
 }
 
 .row-thumb-wrap {
@@ -753,4 +791,16 @@ function exportCsv() {
   flex: 1;
 }
 
+.mobile-table-hint {
+  display: none;
+  font-size: 0.75rem;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .mobile-table-hint {
+    display: block;
+  }
+}
 </style>

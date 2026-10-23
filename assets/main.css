@@ -101,13 +101,43 @@ a { color: inherit; text-decoration: none; }
 
 /* Cartes et stats */
 .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 24px 0; }
-.stat { display: block; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 24px 0; }
+.stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100%;
+  box-sizing: border-box;
+}
 .stat-link { transition: background .15s, border-color .15s; }
 .stat-link:hover { background: var(--card-hover); border-color: var(--accent); }
-.stat .label { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
-.stat .value { font-size: 1.7rem; font-weight: 700; margin-top: 6px; }
-.stat .sub { color: var(--muted); font-size: .85rem; margin-top: 2px; }
+.stat .label {
+  color: var(--muted);
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  min-height: 2.2em;
+  display: flex;
+  align-items: flex-start;
+  line-height: 1.25;
+}
+.stat .value {
+  font-size: 1.7rem;
+  font-weight: 700;
+  margin-top: 4px;
+  margin-bottom: 2px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.stat .sub {
+  color: var(--muted);
+  font-size: .85rem;
+  margin-top: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
 
 /* Barre d'outils */
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
@@ -400,6 +430,18 @@ td a.name:hover { color: var(--accent); }
 .site-footer p {
   margin: 0;
 }
+.footer-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.footer-links {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
 
 /* Barre flottante de comparaison */
 .compare-bar {
@@ -441,5 +483,360 @@ td a.name:hover { color: var(--accent); }
   height: 16px;
   accent-color: var(--accent);
 }
+
+/* ==========================================================================
+   NAVIGATION MOBILE & TIROIR (DRAWER)
+   ========================================================================== */
+.mobile-menu-btn {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  flex-direction: column;
+  justify-content: space-around;
+  cursor: pointer;
+  z-index: 110;
+}
+.burger-bar {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: var(--text);
+  border-radius: 2px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.mobile-menu-btn.open .burger-bar:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+.mobile-menu-btn.open .burger-bar:nth-child(2) {
+  opacity: 0;
+}
+.mobile-menu-btn.open .burger-bar:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+.mobile-drawer {
+  position: fixed;
+  top: 58px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+}
+.mobile-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+}
+.mobile-drawer-content {
+  position: relative;
+  z-index: 1000;
+  background: #18191c;
+  border-bottom: 2px solid var(--border);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.85);
+  padding: 16px 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(100vh - 70px);
+  overflow-y: auto;
+}
+.mobile-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mobile-nav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+.mobile-nav a:hover,
+.mobile-nav a.mobile-nav-active {
+  background: var(--accent-soft);
+  color: #fff;
+  border-color: rgba(91, 141, 239, 0.4);
+}
+.mobile-nav a .nav-icon {
+  font-size: 1.2rem;
+  width: 24px;
+  text-align: center;
+}
+.mobile-drawer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.mobile-menu-enter-active,
+.mobile-menu-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.mobile-menu-enter-from,
+.mobile-menu-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* ==========================================================================
+   MODE MOBILE (SMARTPHONES & TABLETTES PORTRAIT < 768px)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* En-tête */
+  .site-header {
+    height: 58px;
+  }
+  .header-container {
+    height: 58px;
+  }
+  .brand {
+    font-size: 1.05rem;
+  }
+  .brand-logo {
+    width: 22px;
+    height: 22px;
+  }
+  .desktop-nav {
+    display: none !important;
+  }
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  /* Conteneur et espacements */
+  .container {
+    padding: 0 14px;
+  }
+  .main-content {
+    padding: 18px 0 50px;
+  }
+
+  /* Titre hero */
+  .hero {
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    font-size: 1.5rem;
+    line-height: 1.25;
+  }
+  .hero p {
+    font-size: 0.86rem;
+    line-height: 1.5;
+  }
+
+  /* Grille des statistiques macro */
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin: 16px 0;
+  }
+  .stat {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 100%;
+  }
+  .stat .label {
+    font-size: 0.68rem;
+    min-height: 2.3em;
+    display: flex;
+    align-items: flex-start;
+    line-height: 1.25;
+  }
+  .stat .value {
+    font-size: 1.25rem;
+    margin-top: 4px;
+    margin-bottom: 2px;
+    line-height: 1.15;
+  }
+  .stat .sub {
+    font-size: 0.72rem;
+    margin-top: auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* Si le nombre total est impair (ex: 5 cartes sur l'accueil),
+     la première carte (Produits indexés) s'étend sur 2 colonnes en en-tête.
+     Toutes les autres cartes restent uniformes en 2 colonnes équilibrées. */
+  .stats .stat:first-child:nth-last-child(odd) {
+    grid-column: span 2;
+  }
+
+  /* Barre d'outils et recherche */
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .toolbar .input.grow {
+    width: 100%;
+    min-width: 0;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chip {
+    padding: 6px 11px;
+    font-size: 0.82rem;
+  }
+  .filter-chips,
+  .filter-group .chips {
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+  }
+
+  /* Filtres avancés */
+  .advanced-filters {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .filter-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .filter-group-label {
+    min-width: 0;
+    font-size: 0.72rem;
+  }
+
+  /* Grille de cartes produits */
+  .cards-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .product-card {
+    padding: 14px;
+  }
+
+  /* Tableau */
+  .table-wrap {
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+  th, td {
+    padding: 8px 10px;
+    font-size: 0.78rem;
+  }
+
+  /* Onglets de catégorie */
+  .category-tabs {
+    margin: 14px 0 16px;
+    gap: 8px;
+    scrollbar-width: none;
+  }
+  .category-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .cat-tab {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+
+  /* Portails de catégorie & Highligts sur l'accueil */
+  .portal-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .highlights-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  /* Barre de comparaison flottante */
+  .compare-bar {
+    width: calc(100% - 28px);
+    max-width: 380px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    bottom: 12px;
+  }
+  .compare-bar-content {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+    font-size: 0.82rem;
+  }
+
+  /* Fiche produit détaillée */
+  .product-hero {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+  }
+  .product-hero h1 {
+    justify-content: center;
+    font-size: 1.35rem;
+  }
+  .product-hero-image-wrap {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto;
+  }
+  .product-hero-info {
+    min-width: 0;
+    width: 100%;
+  }
+  .chart-box {
+    height: 250px;
+  }
+
+  /* Pied de page */
+  .site-footer {
+    padding: 24px 0;
+  }
+  .footer-container {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+  .footer-links {
+    justify-content: center;
+  }
+}
+
+/* ==========================================================================
+   TRES PETITS MOBILES (< 420px)
+   ========================================================================== */
+@media (max-width: 420px) {
+  .hero h1 {
+    font-size: 1.35rem;
+  }
+  .stats {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .stats .stat:first-child:nth-last-child(odd) {
+    grid-column: span 1;
+  }
+  .product-card-price {
+    font-size: 1.2rem;
+  }
+}
+
 
 

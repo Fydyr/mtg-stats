@@ -10,6 +10,7 @@ export default defineNuxtConfig({
       htmlAttrs: { lang: 'fr' },
       title: 'MTG Stats | Suivi des prix des boosters',
       meta: [
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         {
           name: 'description',
           content:
