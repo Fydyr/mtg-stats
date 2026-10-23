@@ -6,7 +6,8 @@ Chart.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip, F
 
 const route = useRoute()
 const { data, error } = await useFetch<{
-  id: number; name: string; type: string; releaseDate: string | null; cardmarket: string
+  id: number; name: string; category?: string; type: string; deckType?: string | null
+  releaseDate: string | null; cardmarket: string
   history: { month: string; price: number; ev: number | null }[]
 }>(`/api/products/${route.params.id}`)
 
@@ -43,7 +44,7 @@ const chartData = computed(() => ({
   labels: filteredHistory.value.map((h) => h.month),
   datasets: [
     {
-      label: 'Prix boîte',
+      label: data.value?.category === 'PRECON_DECK' ? 'Prix deck' : data.value?.category === 'SINGLE_BOOSTER' ? 'Prix booster' : 'Prix boîte',
       data: filteredHistory.value.map((h) => h.price),
       borderColor: '#5b8def',
       backgroundColor: 'rgba(91, 141, 239, 0.12)',
@@ -171,7 +172,7 @@ useSeoMeta({
 </script>
 
 <template>
-  <NuxtLink to="/" class="back">← Retour aux boosters</NuxtLink>
+  <NuxtLink :to="data?.category === 'PRECON_DECK' ? '/decks' : data?.category === 'SINGLE_BOOSTER' ? '/boosters' : '/boxes'" class="back">← Retour au catalogue</NuxtLink>
   <section class="hero">
     <h1 style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
       <img
@@ -183,8 +184,15 @@ useSeoMeta({
       />
       <span>{{ data?.name }}</span>
     </h1>
-    <p><span class="badge" :class="`badge-${data?.type.toLowerCase()}`">{{ data?.type }}</span>
-      <span v-if="data?.releaseDate"> · sorti en {{ new Date(data.releaseDate).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) }}</span></p>
+    <p>
+      <span v-if="data?.category === 'PRECON_DECK'" class="badge" :class="`badge-${(data?.deckType || 'other').toLowerCase()}`">
+        {{ data?.deckType || 'DECK' }}
+      </span>
+      <span v-else class="badge" :class="`badge-${data?.type.toLowerCase()}`">
+        {{ data?.category === 'SINGLE_BOOSTER' ? `Booster ${data?.type}` : `Boîte ${data?.type}` }}
+      </span>
+      <span v-if="data?.releaseDate"> · sorti en {{ new Date(data.releaseDate).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) }}</span>
+    </p>
     <p style="margin-top:14px"><a class="btn" :href="data?.cardmarket" target="_blank" rel="noopener noreferrer">Voir sur Cardmarket ↗</a></p>
   </section>
 

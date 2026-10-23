@@ -24,7 +24,9 @@ export default defineEventHandler(async (event) => {
     return {
       id: p.id,
       name: p.name,
+      category: (p as any).category || 'BOOSTER_BOX',
       type: p.type,
+      deckType: (p as any).deckType || null,
       releaseDate: p.releaseDate ? p.releaseDate.toISOString().slice(0, 10) : null,
       cardmarketUrl: p.cardmarketUrl ?? '',
       price: Number(currentSnap?.price ?? NaN),

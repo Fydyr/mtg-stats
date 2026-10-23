@@ -85,14 +85,40 @@ const VINTAGE_NO_DIRECT_BOX = new Set([
   'Alliances'
 ])
 
-/** Génère l'URL Cardmarket la plus fiable (directe ou recherche) */
-export function cardmarketLink(name: string, type = 'DRAFT', url?: string | null): string {
-  // 1. Si une URL personnalisée manuelle a été saisie dans l'admin (qui n'est pas un vieux lien Alpha/Beta cassé)
+export function cardmarketLink(
+  name: string,
+  type = 'DRAFT',
+  url?: string | null,
+  category: 'BOOSTER_BOX' | 'SINGLE_BOOSTER' | 'PRECON_DECK' = 'BOOSTER_BOX'
+): string {
+  // 1. Si une URL personnalisée manuelle a été saisie dans l'admin
   if (url && url.startsWith('http') && !url.includes('Alpha-Booster') && !url.includes('Beta-Booster') && !url.includes('Unlimited-Booster')) {
     return url
   }
 
-  // 2. Si c'est une édition vintage sans fiche booster box active, on ouvre la recherche pour éviter "Produit invalide !"
+  // 2. Si c'est un deck préconstruit, ouvrir la recherche Cardmarket
+  if (category === 'PRECON_DECK') {
+    return `https://www.cardmarket.com/fr/Magic/Products/Search?searchString=${encodeURIComponent(name).replace(/%20/g, '+')}`
+  }
+
+  // 3. Si c'est un booster individuel
+  if (category === 'SINGLE_BOOSTER') {
+    const cleanName = name
+      .replace(/['’]/g, '')
+      .replace(/[/:&|,.]/g, ' ')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .trim()
+    let suffix = 'Booster'
+    if (type === 'COLLECTOR') suffix = 'Collector-Booster'
+    else if (type === 'SET') suffix = 'Set-Booster'
+    else if (type === 'PLAY') suffix = 'Play-Booster'
+    else if (type === 'DRAFT') suffix = 'Draft-Booster'
+    return `https://www.cardmarket.com/fr/Magic/Products/Boosters/${cleanName}-${suffix}`
+  }
+
+  // 4. Si c'est une édition vintage sans fiche booster box active
   if (VINTAGE_NO_DIRECT_BOX.has(name)) {
     return `https://www.cardmarket.com/fr/Magic/Products/Search?searchString=${encodeURIComponent(`${name} Booster Box`).replace(/%20/g, '+')}`
   }

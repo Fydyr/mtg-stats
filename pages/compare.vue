@@ -138,7 +138,7 @@ function removeProduct(id: number) {
   if (currentIds.length) {
     router.push({ query: { ids: currentIds.join(',') } })
   } else {
-    router.push('/')
+    router.push('/boxes')
   }
 }
 
@@ -162,7 +162,7 @@ useSeoMeta({
 </script>
 
 <template>
-  <NuxtLink to="/" class="back">← Retour au catalogue des boosters</NuxtLink>
+  <NuxtLink to="/boxes" class="back">← Retour au catalogue des boîtes</NuxtLink>
 
   <section class="hero">
     <h1>Comparateur de boîtes</h1>
@@ -242,7 +242,10 @@ useSeoMeta({
               </div>
             </td>
             <td>
-              <span class="badge" :class="`badge-${p.type.toLowerCase()}`">{{ p.type }}</span>
+              <span v-if="(p as any).category === 'PRECON_DECK'" class="badge" :class="`badge-${((p as any).deckType || 'other').toLowerCase()}`">
+                {{ (p as any).deckType || 'DECK' }}
+              </span>
+              <span v-else class="badge" :class="`badge-${p.type.toLowerCase()}`">{{ p.type }}</span>
             </td>
             <td class="muted">
               {{ p.releaseDate ? new Date(p.releaseDate).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : '-' }}

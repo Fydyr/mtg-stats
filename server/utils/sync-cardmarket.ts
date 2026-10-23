@@ -40,6 +40,50 @@ export function parseBoosterBoxName(rawName: string): { editionName: string; typ
   return { editionName: name, type }
 }
 
+export function parseSingleBoosterName(rawName: string): { editionName: string; type: BoosterType } {
+  let name = rawName.trim()
+  let type: BoosterType = BoosterType.DRAFT
+
+  if (/\bcollector(?:\s+booster)?\b/i.test(name)) {
+    type = BoosterType.COLLECTOR
+    name = name.replace(/\bcollector(?:\s+booster)?\b/gi, '').trim()
+  } else if (/\bplay(?:\s+booster)?\b/i.test(name)) {
+    type = BoosterType.PLAY
+    name = name.replace(/\bplay(?:\s+booster)?\b/gi, '').trim()
+  } else if (/\bset(?:\s+booster)?\b/i.test(name)) {
+    type = BoosterType.SET
+    name = name.replace(/\bset(?:\s+booster)?\b/gi, '').trim()
+  } else if (/\bdraft(?:\s+booster)?\b/i.test(name)) {
+    type = BoosterType.DRAFT
+    name = name.replace(/\bdraft(?:\s+booster)?\b/gi, '').trim()
+  } else if (/\bjumpstart\b/i.test(name)) {
+    type = BoosterType.OTHER
+    name = name.replace(/\bbooster\b/gi, '').trim()
+  } else {
+    type = BoosterType.DRAFT
+    name = name.replace(/\bbooster\b/gi, '').trim()
+  }
+
+  name = name.replace(/[-–—:]+$/, '').trim()
+  if (!name) name = rawName.trim()
+  return { editionName: name, type }
+}
+
+export function parsePreconDeckName(rawName: string): { name: string; deckType: 'COMMANDER' | 'CHALLENGER' | 'STARTER' | 'OTHER' } {
+  const lower = rawName.toLowerCase()
+  let deckType: 'COMMANDER' | 'CHALLENGER' | 'STARTER' | 'OTHER' = 'OTHER'
+
+  if (lower.includes('commander')) {
+    deckType = 'COMMANDER'
+  } else if (lower.includes('challenger')) {
+    deckType = 'CHALLENGER'
+  } else if (lower.includes('starter') || lower.includes('intro pack') || lower.includes('game night')) {
+    deckType = 'STARTER'
+  }
+
+  return { name: rawName.trim(), deckType }
+}
+
 export interface CmProduct {
   idProduct: number
   name: string
@@ -73,7 +117,7 @@ const JUNK_KEYWORDS = [
 ]
 
 /**
- * Synchronise l'ensemble du catalogue des boîtes scellées et les prix depuis Cardmarket S3.
+ * Synchronise l'ensemble du catalogue (boîtes scellées, boosters individuels, decks préconstruits) depuis Cardmarket S3.
  */
 export async function syncCardmarketData(
   targetMonth?: string,
@@ -100,12 +144,34 @@ export async function syncCardmarketData(
     throw new Error('Réponse invalide du CDN Cardmarket S3')
   }
 
-  // Filtrer uniquement les vraies boîtes de boosters (Catégorie 7 Magic Display)
-  const boxes = prodsData.products.filter((p) => {
-    if (p.idCategory !== 7) return false
-    const n = p.name.toLowerCase()
-    return !JUNK_KEYWORDS.some((j) => n.includes(j))
-  })
+  // Filtrer les 3 catégories : Boîtes (Cat 7), Boosters à l'unité (Cat 2), Decks préconstruits (Cat 18 & 32)
+  const itemsToSync: {
+    idProduct: number
+    name: string
+    category: 'BOOSTER_BOX' | 'SINGLE_BOOSTER' | 'PRECON_DECK'
+    type: BoosterType
+    deckType?: 'COMMANDER' | 'CHALLENGER' | 'STARTER' | 'OTHER'
+  }[] = []
+
+  for (const p of prodsData.products) {
+    const raw = p.name?.trim()
+    if (!raw) continue
+    const lower = raw.toLowerCase()
+
+    if (p.idCategory === 7 && !JUNK_KEYWORDS.some((j) => lower.includes(j))) {
+      const { editionName, type } = parseBoosterBoxName(raw)
+      itemsToSync.push({ idProduct: p.idProduct, name: editionName, category: 'BOOSTER_BOX', type })
+    } else if (p.idCategory === 2 && !JUNK_KEYWORDS.some((j) => lower.includes(j))) {
+      const { editionName, type } = parseSingleBoosterName(raw)
+      itemsToSync.push({ idProduct: p.idProduct, name: editionName, category: 'SINGLE_BOOSTER', type })
+    } else if (
+      (p.idCategory === 18 || p.idCategory === 32) &&
+      (lower.includes('deck') || lower.includes('commander') || lower.includes('challenger') || lower.includes('starter') || lower.includes('intro pack'))
+    ) {
+      const { name, deckType } = parsePreconDeckName(raw)
+      itemsToSync.push({ idProduct: p.idProduct, name, category: 'PRECON_DECK', type: 'OTHER' as BoosterType, deckType })
+    }
+  }
 
   // Map des prix par idProduct
   const priceMap = new Map<number, CmPriceGuide>()
@@ -116,18 +182,13 @@ export async function syncCardmarketData(
   let totalProducts = 0
   let totalPrices = 0
 
-  for (const box of boxes) {
-    const rawName = box.name.trim()
-    if (!rawName) continue
-
-    const { editionName, type } = parseBoosterBoxName(rawName)
-
+  for (const item of itemsToSync) {
     // Upsert du produit avec cardmarketId
     const existing = await prisma.product.findFirst({
       where: {
         OR: [
-          { cardmarketId: box.idProduct },
-          { name: editionName, type }
+          { cardmarketId: item.idProduct },
+          { name: item.name, category: item.category as any, type: item.type }
         ]
       }
     })
@@ -137,23 +198,27 @@ export async function syncCardmarketData(
       product = await prisma.product.update({
         where: { id: existing.id },
         data: {
-          cardmarketId: box.idProduct,
-          type: existing.type || type
+          cardmarketId: item.idProduct,
+          category: (item.category as any) || (existing as any).category,
+          type: existing.type || item.type,
+          deckType: (item.deckType as any) || (existing as any).deckType
         }
       })
     } else {
       product = await prisma.product.create({
         data: {
-          name: editionName,
-          type,
-          cardmarketId: box.idProduct
+          name: item.name,
+          category: item.category as any,
+          type: item.type,
+          deckType: item.deckType as any,
+          cardmarketId: item.idProduct
         }
       })
     }
     totalProducts++
 
     // Enregistrement du prix
-    const pg = priceMap.get(box.idProduct)
+    const pg = priceMap.get(item.idProduct)
     if (pg) {
       let chosenPrice: number | null = null
       if (priceFieldChoice === 'low' && pg.low && pg.low > 0) chosenPrice = pg.low
@@ -184,7 +249,7 @@ export async function syncCardmarketData(
     }
   }
 
-  console.log(`[Cardmarket Sync] Terminé : ${totalProducts} boîtes traitées, ${totalPrices} prix enregistrés pour ${month}.`)
+  console.log(`[Cardmarket Sync] Terminé : ${totalProducts} produits traités (${itemsToSync.length} éligibles), ${totalPrices} prix enregistrés pour ${month}.`)
 
   return {
     ok: true,

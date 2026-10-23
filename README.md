@@ -7,10 +7,11 @@ Suivi mensuel des prix des boosters scellés Magic: The Gathering (marché europ
 ## Fonctionnement
 
 - **Page publique `/` :**
+  - Navigation par onglets : **📦 Boîtes de boosters (Displays)**, **🃏 Boosters individuels** et **⚔️ Decks préconstruits**.
   - Tableau et vue grille de cartes (avec symboles officiels d'éditions Scryfall).
-  - Tri et filtres par catégories de boosters (`Draft`, `Set`, `Play`, `Collector`, `Autres`).
+  - Tri et filtres dédiés : par types de boosters (`Draft`, `Set`, `Play`, `Collector`) ou par catégories de decks (`Commander`, `Challenger`, `Starter / Kits`).
   - Calcul et tri par **Ratio EV / Prix** avec filtre rapide pour les boîtes rentables à l'ouverture (`⚡ EV > Prix`).
-  - Sélection multiple (jusqu'à 5 boîtes) avec barre flottante pour lancer la comparaison.
+  - Sélection multiple (jusqu'à 5 boîtes ou decks) avec barre flottante pour lancer la comparaison.
   - Export instantané au format CSV (compatible Excel).
 - **Page `/products/:id` :** historique complet, graphique d'évolution avec sélecteurs de période (6 mois, 1 an, 3 ans, Tout), EV estimée, ratio de rentabilité et tooltips mensuels détaillés.
 - **Page `/compare` :** outil de comparaison multi-produits avec vue prix brut (€) et vue performance relative (% base 100).

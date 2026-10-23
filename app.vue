@@ -11,9 +11,12 @@ const route = useRoute()
           <span>MTG Stats</span>
         </NuxtLink>
         <nav class="nav">
-          <NuxtLink to="/">Boosters</NuxtLink>
-          <NuxtLink to="/market">Tendances Marché</NuxtLink>
-          <NuxtLink to="/admin">Admin</NuxtLink>
+          <NuxtLink to="/" :class="{ 'nav-active': route.path === '/' }">Accueil</NuxtLink>
+          <NuxtLink to="/boxes" :class="{ 'nav-active': route.path.startsWith('/boxes') || route.path.startsWith('/boites') }">Boîtes</NuxtLink>
+          <NuxtLink to="/boosters" :class="{ 'nav-active': route.path.startsWith('/boosters') }">Boosters</NuxtLink>
+          <NuxtLink to="/decks" :class="{ 'nav-active': route.path.startsWith('/decks') }">Decks</NuxtLink>
+          <NuxtLink to="/market" :class="{ 'nav-active': route.path.startsWith('/market') }">Tendances Marché</NuxtLink>
+          <NuxtLink to="/admin" :class="{ 'nav-active': route.path.startsWith('/admin') }">Admin</NuxtLink>
         </nav>
       </div>
     </header>

@@ -1,422 +1,426 @@
 <script setup lang="ts">
 type Item = {
-  id: number; name: string; type: string; releaseDate: string | null; cardmarket: string
-  price: number | null; ev: number | null; previous: number | null
-  var1m: number | null; var3m: number | null; var6m: number | null
+  id: number
+  name: string
+  category: 'BOOSTER_BOX' | 'SINGLE_BOOSTER' | 'PRECON_DECK'
+  type: string
+  deckType?: 'COMMANDER' | 'CHALLENGER' | 'STARTER' | 'OTHER' | null
+  releaseDate: string | null
+  cardmarket: string
+  price: number | null
+  ev: number | null
+  previous: number | null
+  var1m: number | null
+  var3m: number | null
+  var6m: number | null
   evRatio?: number | null
 }
 
 const { data } = await useFetch<{ month: string | null; items: Item[] }>('/api/products')
 const { getIcon } = useSetIcons()
 
-const search = ref('')
-const type = ref('ALL')
-const onlyProfitable = ref(false)
-const viewMode = ref<'table' | 'grid'>('table')
-const sortKey = ref<keyof Item>('var1m')
-const sortDir = ref<1 | -1>(-1)
-const selectedIds = ref<number[]>([])
-
-function toggleSelect(id: number) {
-  const idx = selectedIds.value.indexOf(id)
-  if (idx > -1) {
-    selectedIds.value.splice(idx, 1)
-  } else {
-    if (selectedIds.value.length >= 5) return
-    selectedIds.value.push(id)
-  }
-}
-
-const TYPES = [
-  { v: 'ALL', l: 'Tous' }, { v: 'DRAFT', l: 'Draft' }, { v: 'SET', l: 'Set' },
-  { v: 'PLAY', l: 'Play' }, { v: 'COLLECTOR', l: 'Collector' }, { v: 'OTHER', l: 'Autres' }
-]
-
 const items = computed(() => {
   return (data.value?.items ?? []).map((i) => ({
     ...i,
+    category: (i.category || 'BOOSTER_BOX') as 'BOOSTER_BOX' | 'SINGLE_BOOSTER' | 'PRECON_DECK',
     evRatio: (i.ev != null && i.price != null && i.price > 0) ? Math.round((i.ev / i.price) * 100) : null
   }))
 })
 
-const rows = computed(() => {
-  const q = search.value.toLowerCase()
-  const list = items.value.filter(
-    (i) => i.price != null
-      && (type.value === 'ALL' || i.type === type.value)
-      && i.name.toLowerCase().includes(q)
-      && (!onlyProfitable.value || (i.evRatio != null && i.evRatio >= 100))
-  )
-  const k = sortKey.value
-  return [...list].sort((a, b) => {
-    const av = a[k] as any, bv = b[k] as any
-    if (av == null && bv == null) return 0
-    if (av == null) return 1
-    if (bv == null) return -1
-    if (typeof av === 'string') return av.localeCompare(bv) * sortDir.value
-    return (av - bv) * sortDir.value
-  })
+// Comptages par catégorie
+const counts = computed(() => {
+  const c = { BOOSTER_BOX: 0, SINGLE_BOOSTER: 0, PRECON_DECK: 0, TOTAL: 0 }
+  for (const i of items.value) {
+    if (c[i.category] != null) c[i.category]++
+    c.TOTAL++
+  }
+  return c
 })
 
-function sortBy(k: keyof Item) {
-  if (sortKey.value === k) sortDir.value = (sortDir.value * -1) as 1 | -1
-  else { sortKey.value = k; sortDir.value = -1 }
-}
-
-const selectedTypeLabel = computed(() => {
-  const found = TYPES.find((t) => t.v === type.value)
-  return found && found.v !== 'ALL' ? found.l : null
-})
-
-// Produits de la catégorie sélectionnée
-const categoryItems = computed(() => {
-  if (type.value === 'ALL') return items.value
-  return items.value.filter((i) => i.type === type.value)
-})
-
-const withVar = computed(() => categoryItems.value.filter((i) => i.var1m != null))
-const best = computed(() => [...withVar.value].sort((a, b) => b.var1m! - a.var1m!)[0])
-const worst = computed(() => [...withVar.value].sort((a, b) => a.var1m! - b.var1m!)[0])
+// Produits avec variation 1 mois
+const withVar = computed(() => items.value.filter((i) => i.var1m != null))
 const avgVar = computed(() =>
   withVar.value.length ? withVar.value.reduce((s, i) => s + i.var1m!, 0) / withVar.value.length : null
 )
 
-const withEvRatio = computed(() => categoryItems.value.filter((i) => i.evRatio != null))
-const bestEv = computed(() => [...withEvRatio.value].sort((a, b) => b.evRatio! - a.evRatio!)[0])
-const profitableCount = computed(() => categoryItems.value.filter((i) => i.evRatio != null && i.evRatio >= 100).length)
+// Plus forte hausse générale
+const topGainer = computed(() => [...withVar.value].sort((a, b) => b.var1m! - a.var1m!)[0])
+
+// Meilleur ratio EV
+const withEv = computed(() => items.value.filter((i) => i.evRatio != null && i.category === 'BOOSTER_BOX'))
+const topEv = computed(() => [...withEv.value].sort((a, b) => b.evRatio! - a.evRatio!)[0])
+
+// Top 5 des hausses du mois
+const top5Gainers = computed(() =>
+  [...withVar.value].sort((a, b) => b.var1m! - a.var1m!).slice(0, 5)
+)
+
+// Top 5 des opportunités EV > Prix
+const top5EvOpportunities = computed(() =>
+  [...items.value.filter((i) => i.category === 'BOOSTER_BOX' && i.evRatio != null && i.evRatio >= 100)]
+    .sort((a, b) => b.evRatio! - a.evRatio!)
+    .slice(0, 5)
+)
 
 const eur = (n: number | null) => n == null ? '-' : new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 const pct = (n: number | null) => n == null ? '-' : `${n > 0 ? '+' : ''}${n.toFixed(2).replace('.', ',')} %`
 const cls = (n: number | null) => n == null ? 'muted' : n > 0 ? 'up' : n < 0 ? 'down' : 'muted'
-const year = (d: string | null) => d ? new Date(d).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : '-'
 const monthLabel = (m: string | null) => m ? new Date(m + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) : ''
-
-function exportCsv() {
-  const headers = ['ID', 'Edition', 'Type', 'Date de sortie', 'Prix (EUR)', 'EV (EUR)', 'Ratio EV (%)', 'Var 1m (%)', 'Var 3m (%)', 'Var 6m (%)', 'Cardmarket']
-  const escapeCell = (str: any) => `"${String(str ?? '').replace(/"/g, '""')}"`
-
-  const csvRows = [headers.join(';')]
-  for (const r of rows.value) {
-    csvRows.push([
-      r.id,
-      escapeCell(r.name),
-      r.type,
-      r.releaseDate ? r.releaseDate.slice(0, 10) : '',
-      r.price ?? '',
-      r.ev ?? '',
-      r.evRatio ?? '',
-      r.var1m != null ? r.var1m.toFixed(2) : '',
-      r.var3m != null ? r.var3m.toFixed(2) : '',
-      r.var6m != null ? r.var6m.toFixed(2) : '',
-      escapeCell(r.cardmarket)
-    ].join(';'))
-  }
-
-  const blob = new Blob(['\ufeff' + csvRows.join('\r\n')], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `mtg-stats-${data.value?.month || 'export'}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
-}
 
 const reqUrl = useRequestURL()
 const config = useRuntimeConfig()
 const siteUrl = computed(() => reqUrl.origin || (config.public.siteUrl as string) || 'https://mtg-stats.aeroliths.fr')
 
 useSeoMeta({
-  title: 'MTG Stats : prix des boosters scellés Magic',
-  ogTitle: 'MTG Stats : prix des boosters scellés Magic',
-  description: 'Suivi mensuel des prix des boîtes de boosters Magic: The Gathering sur le marché européen : variations, historique et tendances.',
-  ogDescription: 'Suivi mensuel des prix des boîtes de boosters Magic: The Gathering sur le marché européen : variations, historique et tendances.',
+  title: 'MTG Stats : cote et prix des scellés Magic: The Gathering',
+  ogTitle: 'MTG Stats : cote et prix des scellés Magic: The Gathering',
+  description: 'Suivi mensuel et observatoire de la cote des boîtes de boosters, boosters individuels et decks préconstruits Magic: The Gathering.',
+  ogDescription: 'Suivi mensuel et observatoire de la cote des boîtes de boosters, boosters individuels et decks préconstruits Magic: The Gathering.',
   ogUrl: () => `${siteUrl.value}/`,
   ogType: 'website'
 })
 </script>
 
 <template>
-  <section class="hero">
-    <h1>Prix des boosters scellés</h1>
-    <p>
-      Suivi mensuel des boîtes de boosters Magic: The Gathering.<span v-if="data?.month"> Données de {{ monthLabel(data.month) }}.</span> Suivez les tendances sur plusieurs mois plutôt que sur un seul relevé.
-    </p>
-  </section>
+  <div class="home-page">
+    <!-- HERO PRINCIPAL -->
+    <section class="hero">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+        <span class="badge" style="background: rgba(91, 141, 239, 0.15); color: #7aa7ff; border: 1px solid rgba(91, 141, 239, 0.3); font-size: 0.8rem; padding: 4px 10px;">
+          ✦ Observatoire Scellé MTG
+        </span>
+        <span v-if="data?.month" class="muted" style="font-size:0.85rem;">
+          Relevé de {{ monthLabel(data.month) }}
+        </span>
+      </div>
+      <h1>Cote & cours des produits scellés Magic</h1>
+      <p>
+        Suivez l'évolution mensuelle des prix, calculez l'Expected Value (EV) et comparez la rentabilité des
+        boîtes de boosters, boosters unitaires et decks préconstruits sur le marché européen.
+      </p>
+    </section>
 
-  <section class="stats">
-    <div class="card stat">
-      <div class="label" style="display:flex; align-items:center; justify-content:space-between;">
-        <span>Variation moyenne (1 mois)</span>
-        <span v-if="selectedTypeLabel" class="badge" :class="`badge-${type.toLowerCase()}`" style="font-size:0.65rem;">{{ selectedTypeLabel }}</span>
+    <!-- STATS MACRO -->
+    <section class="stats">
+      <div class="card stat">
+        <div class="label">Produits indexés</div>
+        <div class="value">{{ counts.TOTAL }}</div>
+        <div class="sub">456 boîtes · 627 boosters · 919 decks</div>
       </div>
-      <div class="value" :class="cls(avgVar)">{{ pct(avgVar) }}</div>
-      <div class="sub">{{ withVar.length }} boîte(s) comparée(s)</div>
-    </div>
-    <NuxtLink :to="best ? `/products/${best.id}` : '#'" class="card stat stat-link">
-      <div class="label" style="display:flex; align-items:center; justify-content:space-between;">
-        <span>Plus forte hausse</span>
-        <span v-if="selectedTypeLabel" class="badge" :class="`badge-${type.toLowerCase()}`" style="font-size:0.65rem;">{{ selectedTypeLabel }}</span>
+      <div class="card stat">
+        <div class="label">Variation moyenne (1 mois)</div>
+        <div class="value" :class="cls(avgVar)">{{ pct(avgVar) }}</div>
+        <div class="sub">{{ withVar.length }} produits avec historique</div>
       </div>
-      <div class="value up">{{ pct(best?.var1m ?? null) }}</div>
-      <div class="sub">{{ best?.name ?? '-' }}</div>
-    </NuxtLink>
-    <NuxtLink :to="worst ? `/products/${worst.id}` : '#'" class="card stat stat-link">
-      <div class="label" style="display:flex; align-items:center; justify-content:space-between;">
-        <span>Plus forte baisse</span>
-        <span v-if="selectedTypeLabel" class="badge" :class="`badge-${type.toLowerCase()}`" style="font-size:0.65rem;">{{ selectedTypeLabel }}</span>
-      </div>
-      <div class="value down">{{ pct(worst?.var1m ?? null) }}</div>
-      <div class="sub">{{ worst?.name ?? '-' }}</div>
-    </NuxtLink>
-    <NuxtLink :to="bestEv ? `/products/${bestEv.id}` : '#'" class="card stat stat-link">
-      <div class="label" style="display:flex; align-items:center; justify-content:space-between;">
-        <span>Meilleur ratio EV/Prix</span>
-        <span v-if="selectedTypeLabel" class="badge" :class="`badge-${type.toLowerCase()}`" style="font-size:0.65rem;">{{ selectedTypeLabel }}</span>
-      </div>
-      <div class="value" :class="bestEv && bestEv.evRatio && bestEv.evRatio >= 100 ? 'up' : 'muted'">
-        {{ bestEv?.evRatio != null ? `${bestEv.evRatio} %` : '-' }}
-      </div>
-      <div class="sub">{{ bestEv?.name ?? '-' }}</div>
-    </NuxtLink>
-  </section>
+      <NuxtLink :to="topGainer ? `/products/${topGainer.id}` : '#'" class="card stat stat-link">
+        <div class="label">Plus forte hausse</div>
+        <div class="value up">{{ pct(topGainer?.var1m ?? null) }}</div>
+        <div class="sub">{{ topGainer?.name ?? '-' }}</div>
+      </NuxtLink>
+      <NuxtLink :to="topEv ? `/products/${topEv.id}` : '#'" class="card stat stat-link">
+        <div class="label">Meilleur ratio EV (Boîte)</div>
+        <div class="value" style="color:#7aa7ff;">{{ topEv?.evRatio != null ? `${topEv.evRatio} %` : '-' }}</div>
+        <div class="sub">{{ topEv?.name ?? '-' }}</div>
+      </NuxtLink>
+    </section>
 
-  <div class="toolbar" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-    <input id="search" v-model="search" class="input grow" placeholder="Rechercher une édition..." />
-    <div class="chips">
-      <button v-for="t in TYPES" :key="t.v" class="chip" :class="{ active: type === t.v }" @click="type = t.v">{{ t.l }}</button>
-      <button
-        class="chip"
-        :class="{ active: onlyProfitable }"
-        style="display: inline-flex; align-items: center; gap: 6px;"
-        title="Afficher uniquement les boîtes dont l'EV (Expected Value) dépasse le prix d'achat"
-        @click="onlyProfitable = !onlyProfitable"
-      >
-        <span>⚡ EV &gt; Prix</span>
-        <span v-if="profitableCount > 0" class="badge" style="background: rgba(76, 183, 130, 0.2); color: #4cb782; padding: 1px 6px; font-size: 0.7rem;">{{ profitableCount }}</span>
-      </button>
-    </div>
-    <div class="chips">
-      <button
-        class="chip"
-        style="padding: 7px 12px;"
-        title="Exporter la liste affichée au format CSV (compatible Excel)"
-        @click="exportCsv"
-      >
-        📥 Export CSV
-      </button>
-      <button
-        class="chip"
-        :class="{ active: viewMode === 'table' }"
-        style="padding: 7px 12px;"
-        title="Affichage en tableau"
-        @click="viewMode = 'table'"
-      >
-        ☷ Tableau
-      </button>
-      <button
-        class="chip"
-        :class="{ active: viewMode === 'grid' }"
-        style="padding: 7px 12px;"
-        title="Affichage en grille de cartes"
-        @click="viewMode = 'grid'"
-      >
-        ⊞ Grille
-      </button>
-    </div>
-  </div>
+    <!-- LES 3 PORTAILS DE CATÉGORIE -->
+    <section class="portal-section">
+      <h2 class="section-title">Explorer par catégorie</h2>
+      <div class="portal-grid">
+        <!-- CARTE BOÎTES -->
+        <NuxtLink to="/boxes" class="portal-card">
+          <div class="portal-icon">📦</div>
+          <div class="portal-badge">{{ counts.BOOSTER_BOX }} boîtes</div>
+          <h3>Boîtes de boosters</h3>
+          <p>
+            Historique complet des boîtes de boosters scellées (Draft, Set, Play, Collector). Suivi des prix, EV et rentabilité à l'ouverture.
+          </p>
+          <div class="portal-footer">
+            <span class="portal-action">Consulter les boîtes →</span>
+          </div>
+        </NuxtLink>
 
-  <!-- VUE TABLEAU -->
-  <div v-if="viewMode === 'table'" class="card table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th class="checkbox-cell" style="width: 36px;"></th>
-          <th @click="sortBy('name')">
-            Édition <span v-if="sortKey === 'name'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
-          </th>
-          <th style="width: 110px;" @click="sortBy('type')">
-            Type <span v-if="sortKey === 'type'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
-          </th>
-          <th style="width: 125px;" @click="sortBy('releaseDate')">
-            Date de sortie <span v-if="sortKey === 'releaseDate'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
-          </th>
-          <th class="num" style="width: 105px;" @click="sortBy('price')">
-            Prix <span v-if="sortKey === 'price'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
-          </th>
-          <th class="num" style="width: 105px;" @click="sortBy('ev')">
-            EV <span v-if="sortKey === 'ev'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
-          </th>
-          <th class="num" style="width: 105px;" @click="sortBy('evRatio')">
-            Ratio EV <span v-if="sortKey === 'evRatio'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
-          </th>
-          <th class="num" style="width: 105px;" @click="sortBy('var1m')">
-            1 mois <span v-if="sortKey === 'var1m'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
-          </th>
-          <th class="num" style="width: 105px;" @click="sortBy('var3m')">
-            3 mois <span v-if="sortKey === 'var3m'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
-          </th>
-          <th class="num" style="width: 105px;" @click="sortBy('var6m')">
-            6 mois <span v-if="sortKey === 'var6m'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
-          </th>
-          <th style="width: 125px; text-align: center;">Achat</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="r in rows" :key="r.id">
-          <td class="checkbox-cell" @click.stop>
-            <input
-              type="checkbox"
-              class="custom-checkbox"
-              :checked="selectedIds.includes(r.id)"
-              :disabled="!selectedIds.includes(r.id) && selectedIds.length >= 5"
-              title="Sélectionner pour comparer"
-              @change="toggleSelect(r.id)"
-            />
-          </td>
-          <td class="name-cell">
-            <div class="name-with-icon">
+        <!-- CARTE BOOSTERS -->
+        <NuxtLink to="/boosters" class="portal-card">
+          <div class="portal-icon">🃏</div>
+          <div class="portal-badge">{{ counts.SINGLE_BOOSTER }} boosters</div>
+          <h3>Boosters individuels</h3>
+          <p>
+            Cotes et prix des paquets de boosters à l'unité. Indispensable pour estimer vos packs isolés, reliques et drafts maison.
+          </p>
+          <div class="portal-footer">
+            <span class="portal-action">Consulter les boosters →</span>
+          </div>
+        </NuxtLink>
+
+        <!-- CARTE DECKS -->
+        <NuxtLink to="/decks" class="portal-card">
+          <div class="portal-icon">⚔️</div>
+          <div class="portal-badge">{{ counts.PRECON_DECK }} decks</div>
+          <h3>Decks préconstruits</h3>
+          <p>
+            Suivi des cotes pour les decks officiels prêts à jouer : Commander, Challenger Decks, Kits d'initiation et Starter sets.
+          </p>
+          <div class="portal-footer">
+            <span class="portal-action">Consulter les decks →</span>
+          </div>
+        </NuxtLink>
+      </div>
+    </section>
+
+    <!-- DEUX BLOCS : TOP HAUSSES & OPPORTUNITÉS EV -->
+    <section class="highlights-grid">
+      <!-- TOP HAUSSES -->
+      <div class="card highlight-card">
+        <div class="highlight-header">
+          <h3 style="margin:0; font-size:1.15rem;">🔥 Plus fortes hausses du mois</h3>
+          <span class="muted" style="font-size:0.8rem;">1 mois</span>
+        </div>
+        <div class="mini-list">
+          <div v-for="item in top5Gainers" :key="item.id" class="mini-row">
+            <div class="mini-row-info">
               <img
-                v-if="getIcon(r.name)?.icon"
-                :src="getIcon(r.name)!.icon"
-                :title="getIcon(r.name)!.code"
-                :alt="getIcon(r.name)!.code"
+                v-if="getIcon(item.name)?.icon"
+                :src="getIcon(item.name)!.icon"
+                :alt="getIcon(item.name)!.code"
                 class="set-icon"
                 loading="lazy"
               />
-              <NuxtLink class="name" :to="`/products/${r.id}`">{{ r.name }}</NuxtLink>
+              <div>
+                <NuxtLink :to="`/products/${item.id}`" class="mini-row-title">{{ item.name }}</NuxtLink>
+                <div class="muted" style="font-size:0.75rem;">
+                  {{ item.category === 'PRECON_DECK' ? (item.deckType || 'Deck') : item.type }}
+                </div>
+              </div>
             </div>
-          </td>
-          <td>
-            <span class="badge" :class="`badge-${r.type.toLowerCase()}`">{{ r.type }}</span>
-          </td>
-          <td class="muted">{{ year(r.releaseDate) }}</td>
-          <td class="num" style="font-weight: 700; font-size: 0.95rem;">{{ eur(r.price) }}</td>
-          <td class="num" style="font-weight: 600; color: #7aa7ff;">{{ eur(r.ev) }}</td>
-          <td class="num">
-            <span
-              v-if="r.evRatio != null"
-              class="tag-var"
-              :class="r.evRatio >= 100 ? 'up' : 'muted'"
-              :title="r.evRatio >= 100 ? 'Rentable à l\'ouverture (EV > Prix)' : 'Sous l\'EV'"
-            >
-              {{ r.evRatio }} %
-            </span>
-            <span v-else class="muted">-</span>
-          </td>
-          <td class="num">
-            <span class="tag-var" :class="cls(r.var1m)">{{ pct(r.var1m) }}</span>
-          </td>
-          <td class="num">
-            <span class="tag-var" :class="cls(r.var3m)">{{ pct(r.var3m) }}</span>
-          </td>
-          <td class="num">
-            <span class="tag-var" :class="cls(r.var6m)">{{ pct(r.var6m) }}</span>
-          </td>
-          <td style="text-align: center;">
-            <a class="cm-link" :href="r.cardmarket" target="_blank" rel="noopener noreferrer" :title="`Voir ${r.name} sur Cardmarket`">
-              Cardmarket ↗
-            </a>
-          </td>
-        </tr>
-        <tr v-if="!rows.length">
-          <td colspan="11" class="muted" style="text-align:center; padding:40px;">Aucun résultat</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- VUE GRILLE DE CARTES -->
-  <div v-else class="cards-grid">
-    <div v-for="r in rows" :key="r.id" class="product-card">
-      <div>
-        <div class="product-card-header">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <input
-              type="checkbox"
-              class="custom-checkbox"
-              :checked="selectedIds.includes(r.id)"
-              :disabled="!selectedIds.includes(r.id) && selectedIds.length >= 5"
-              title="Sélectionner pour comparer"
-              @change="toggleSelect(r.id)"
-            />
-            <img
-              v-if="getIcon(r.name)?.icon"
-              :src="getIcon(r.name)!.icon"
-              :title="getIcon(r.name)!.code"
-              :alt="getIcon(r.name)!.code"
-              class="set-icon"
-              loading="lazy"
-            />
-            <span class="badge" :class="`badge-${r.type.toLowerCase()}`">{{ r.type }}</span>
+            <div class="mini-row-numbers">
+              <span style="font-weight:700;">{{ eur(item.price) }}</span>
+              <span class="tag-var up">{{ pct(item.var1m) }}</span>
+            </div>
           </div>
-          <span class="muted" style="font-size:0.75rem;">{{ year(r.releaseDate) }}</span>
         </div>
-        <NuxtLink class="product-card-title" :to="`/products/${r.id}`">{{ r.name }}</NuxtLink>
       </div>
 
-      <div class="product-card-body">
-        <div class="product-card-price-row">
-          <div>
-            <span style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; display:block;">Prix boîte</span>
-            <span class="product-card-price">{{ eur(r.price) }}</span>
-          </div>
-          <div style="text-align:right;">
-            <span style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; display:block;">1 mois</span>
-            <span class="tag-var" :class="cls(r.var1m)">{{ pct(r.var1m) }}</span>
-          </div>
+      <!-- OPPORTUNITÉS EV > PRIX -->
+      <div class="card highlight-card">
+        <div class="highlight-header">
+          <h3 style="margin:0; font-size:1.15rem;">💎 Boîtes rentables à l'ouverture</h3>
+          <span class="badge" style="background: rgba(76, 183, 130, 0.2); color: #4cb782;">EV &gt; Prix</span>
         </div>
-
-        <div class="product-card-extra">
-          <span>EV : <strong style="color: #7aa7ff;">{{ eur(r.ev) }}</strong></span>
-          <span>
-            Ratio :
-            <span
-              v-if="r.evRatio != null"
-              class="tag-var"
-              :class="r.evRatio >= 100 ? 'up' : 'muted'"
-              style="font-size:0.75rem; padding:1px 5px;"
-            >
-              {{ r.evRatio }} %
-            </span>
-            <span v-else class="muted">-</span>
-          </span>
-        </div>
-
-        <div class="product-card-footer">
-          <NuxtLink :to="`/products/${r.id}`" class="btn ghost" style="padding:5px 12px; font-size:0.8rem;">
-            Graphique
-          </NuxtLink>
-          <a class="cm-link" :href="r.cardmarket" target="_blank" rel="noopener noreferrer">
-            Cardmarket ↗
-          </a>
+        <div class="mini-list">
+          <div v-for="item in top5EvOpportunities" :key="item.id" class="mini-row">
+            <div class="mini-row-info">
+              <img
+                v-if="getIcon(item.name)?.icon"
+                :src="getIcon(item.name)!.icon"
+                :alt="getIcon(item.name)!.code"
+                class="set-icon"
+                loading="lazy"
+              />
+              <div>
+                <NuxtLink :to="`/products/${item.id}`" class="mini-row-title">{{ item.name }}</NuxtLink>
+                <div class="muted" style="font-size:0.75rem;">Boîte {{ item.type }}</div>
+              </div>
+            </div>
+            <div class="mini-row-numbers">
+              <span style="font-weight:700;">{{ eur(item.price) }}</span>
+              <span class="tag-var up" :title="`EV : ${eur(item.ev)}`">{{ item.evRatio }} %</span>
+            </div>
+          </div>
+          <div v-if="!top5EvOpportunities.length" class="muted" style="text-align:center; padding:20px;">
+            Aucune boîte avec EV &gt; Prix ce mois-ci
+          </div>
         </div>
       </div>
-    </div>
-    <div v-if="!rows.length" class="card muted" style="grid-column: 1 / -1; text-align:center; padding:40px;">
-      Aucun résultat
-    </div>
-  </div>
+    </section>
 
-  <!-- BARRE FLOTTANTE DE COMPARAISON -->
-  <div v-if="selectedIds.length > 0" class="compare-bar">
-    <div class="compare-bar-content">
-      <span>
-        <strong>{{ selectedIds.length }}</strong> boîte(s) sélectionnée(s)
-        <span class="muted" style="font-size:0.8rem; margin-left:6px;">(max 5)</span>
-      </span>
-      <div style="display:flex; gap:8px;">
-        <button class="btn ghost" style="padding:6px 12px; font-size:0.85rem;" @click="selectedIds = []">
-          Effacer
-        </button>
-        <NuxtLink
-          :to="`/compare?ids=${selectedIds.join(',')}`"
-          class="btn"
-          :class="{ disabled: selectedIds.length < 2 }"
-          style="padding:6px 16px; font-size:0.85rem;"
-        >
-          Comparer 📊
+    <!-- BANNIÈRE TENDANCES MARCHÉ -->
+    <section class="market-cta card">
+      <div class="market-cta-content">
+        <div>
+          <h3 style="margin:0 0 6px 0; font-size:1.25rem;">📊 Analyse macro & distribution des prix</h3>
+          <p class="muted" style="margin:0; line-height:1.5;">
+            Visualisez les indices de marché, la distribution des prix par tranche et les plus gros volumes de variation dans notre section dédiée.
+          </p>
+        </div>
+        <NuxtLink to="/market" class="btn" style="white-space:nowrap; padding: 10px 22px;">
+          Voir les Tendances Marché →
         </NuxtLink>
       </div>
-    </div>
+    </section>
   </div>
 </template>
+
+<style scoped>
+.home-page {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.section-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+  letter-spacing: -0.01em;
+}
+
+.portal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.portal-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  transition: all .2s ease;
+  position: relative;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.portal-card:hover {
+  background: var(--card-hover);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.portal-icon {
+  font-size: 2.2rem;
+  margin-bottom: 12px;
+}
+
+.portal-badge {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.portal-card h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: var(--text);
+}
+
+.portal-card p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0 0 20px 0;
+  flex: 1;
+}
+
+.portal-footer {
+  margin-top: auto;
+}
+
+.portal-action {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  transition: gap .15s ease;
+}
+
+.portal-card:hover .portal-action {
+  color: #7aa7ff;
+}
+
+.highlights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.highlight-card {
+  padding: 20px;
+}
+
+.highlight-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mini-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.mini-row:last-child {
+  border-bottom: none;
+}
+
+.mini-row-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mini-row-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+  display: block;
+}
+
+.mini-row-title:hover {
+  color: var(--accent);
+}
+
+.mini-row-numbers {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.market-cta {
+  background: linear-gradient(135deg, rgba(26, 27, 30, 0.9) 0%, rgba(91, 141, 239, 0.1) 100%);
+  border: 1px solid rgba(91, 141, 239, 0.3);
+  padding: 24px;
+}
+
+.market-cta-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+</style>

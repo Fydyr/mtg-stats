@@ -15,18 +15,33 @@ enum BoosterType {
   OTHER
 }
 
+enum ProductCategory {
+  BOOSTER_BOX
+  SINGLE_BOOSTER
+  PRECON_DECK
+}
+
+enum DeckType {
+  COMMANDER
+  CHALLENGER
+  STARTER
+  OTHER
+}
+
 model Product {
   id            Int             @id @default(autoincrement())
   cardmarketId  Int?            @unique
   name          String
+  category      ProductCategory @default(BOOSTER_BOX)
   type          BoosterType     @default(DRAFT)
+  deckType      DeckType?
   releaseDate   DateTime?
   /// URL exacte de la fiche Cardmarket (sinon : lien de recherche généré)
   cardmarketUrl String?
   createdAt     DateTime        @default(now())
   prices        PriceSnapshot[]
 
-  @@unique([name, type])
+  @@unique([name, category, type])
 }
 
 model PriceSnapshot {

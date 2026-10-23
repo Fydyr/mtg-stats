@@ -22,9 +22,11 @@ export default defineEventHandler(async (event) => {
     products: products.map((p) => ({
       id: p.id,
       name: p.name,
+      category: (p as any).category || 'BOOSTER_BOX',
       type: p.type,
+      deckType: (p as any).deckType || null,
       releaseDate: p.releaseDate,
-      cardmarket: cardmarketLink(p.name, p.type, p.cardmarketUrl),
+      cardmarket: cardmarketLink(p.name, p.type, p.cardmarketUrl, (p as any).category),
       history: p.prices.map((s) => ({
         month: s.month,
         price: Number(s.price),
