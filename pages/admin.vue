@@ -304,7 +304,10 @@ const filteredRows = computed(() => {
 watch(month, () => me.value?.admin && load())
 onMounted(() => me.value?.admin && load())
 
-useHead({ title: 'Admin | MTG Stats', meta: [{ name: 'robots', content: 'noindex' }] })
+useSeoMeta({
+  title: 'Admin | MTG Stats',
+  robots: 'noindex, nofollow'
+})
 </script>
 
 <template>

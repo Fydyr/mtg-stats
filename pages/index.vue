@@ -121,7 +121,18 @@ function exportCsv() {
   URL.revokeObjectURL(url)
 }
 
-useHead({ title: 'MTG Stats : prix des boosters scellés Magic' })
+const reqUrl = useRequestURL()
+const config = useRuntimeConfig()
+const siteUrl = computed(() => reqUrl.origin || (config.public.siteUrl as string) || 'https://mtg-stats.aeroliths.fr')
+
+useSeoMeta({
+  title: 'MTG Stats : prix des boosters scellés Magic',
+  ogTitle: 'MTG Stats : prix des boosters scellés Magic',
+  description: 'Suivi mensuel des prix des boîtes de boosters Magic: The Gathering sur le marché européen : variations, historique et tendances.',
+  ogDescription: 'Suivi mensuel des prix des boîtes de boosters Magic: The Gathering sur le marché européen : variations, historique et tendances.',
+  ogUrl: () => `${siteUrl.value}/`,
+  ogType: 'website'
+})
 </script>
 
 <template>

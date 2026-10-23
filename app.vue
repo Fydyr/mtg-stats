@@ -7,7 +7,7 @@ const route = useRoute()
     <header class="site-header">
       <div class="container header-container" :class="{ 'container-fluid': route.path.startsWith('/admin') }">
         <NuxtLink to="/" class="brand">
-          <span class="brand-dot" />
+          <img src="/logo.svg" alt="MTG Stats" class="brand-logo" width="24" height="24" />
           <span>MTG Stats</span>
         </NuxtLink>
         <nav class="nav">

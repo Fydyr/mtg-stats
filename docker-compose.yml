@@ -12,6 +12,7 @@ services:
       NUXT_ADMIN_PASSWORD: "${NUXT_ADMIN_PASSWORD}"
       NUXT_SESSION_SECRET: "${NUXT_SESSION_SECRET}"
       NUXT_SYNC_SECRET: "${NUXT_SYNC_SECRET}"
+      NUXT_PUBLIC_SITE_URL: "https://${DOMAIN}"
     depends_on:
       - postgres
     networks:

@@ -117,7 +117,57 @@ const evRatio = computed(() => (lastEv.value != null && last.value != null && la
 
 const { getIcon } = useSetIcons()
 
-useHead({ title: `${data.value?.name} | MTG Stats` })
+const reqUrl = useRequestURL()
+const config = useRuntimeConfig()
+const siteUrl = computed(() => reqUrl.origin || (config.public.siteUrl as string) || 'https://mtg-stats.aeroliths.fr')
+
+const lastPrice = computed(() => {
+  const history = data.value?.history ?? []
+  return history.at(-1)?.price ?? null
+})
+
+const prevPrice = computed(() => {
+  const history = data.value?.history ?? []
+  return history.length >= 2 ? history.at(-2)?.price ?? null : null
+})
+
+const monthDiff = computed(() => {
+  if (lastPrice.value == null || prevPrice.value == null || prevPrice.value <= 0) return null
+  return ((lastPrice.value - prevPrice.value) / prevPrice.value) * 100
+})
+
+const pageTitle = computed(() => {
+  if (!data.value?.name) return 'Booster | MTG Stats'
+  return `${data.value.name} (${data.value.type}) | MTG Stats`
+})
+
+const seoDescription = computed(() => {
+  if (!data.value) return 'Suivi des prix de boosters scellés Magic: The Gathering sur le marché européen.'
+  const parts: string[] = []
+  if (data.value.type) parts.push(`Boîte ${data.value.type}`)
+  if (lastPrice.value != null) {
+    let p = `Dernier prix : ${lastPrice.value} €`
+    if (monthDiff.value != null) {
+      const sign = monthDiff.value > 0 ? '+' : ''
+      p += ` (${sign}${monthDiff.value.toFixed(1)} % sur 1 mois)`
+    }
+    parts.push(p)
+  }
+  if (lastEv.value != null) {
+    parts.push(`EV : ${lastEv.value} €`)
+  }
+  parts.push("Historique des prix et tendances de marché sur Cardmarket.")
+  return parts.join(' · ')
+})
+
+useSeoMeta({
+  title: () => pageTitle.value,
+  ogTitle: () => pageTitle.value,
+  description: () => seoDescription.value,
+  ogDescription: () => seoDescription.value,
+  ogUrl: () => `${siteUrl.value}${route.path}`,
+  ogType: 'website'
+})
 </script>
 
 <template>

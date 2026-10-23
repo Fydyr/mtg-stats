@@ -51,7 +51,25 @@ const cls = (n: number | null | undefined) => (n == null ? 'muted' : n > 0 ? 'up
 const monthLabel = (m: string | null | undefined) =>
   m ? new Date(m + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) : ''
 
-useHead({ title: 'Tendances du marché scellé | MTG Stats' })
+const reqUrl = useRequestURL()
+const config = useRuntimeConfig()
+const siteUrl = computed(() => reqUrl.origin || (config.public.siteUrl as string) || 'https://mtg-stats.aeroliths.fr')
+
+const seoDescription = computed(() => {
+  const m = data.value?.month ? `Relevé de ${monthLabel(data.value.month)}. ` : ''
+  const count = data.value?.marketTrend?.totalProducts
+  const countStr = count ? `Analyse de ${count} boîtes de boosters Magic: The Gathering` : 'Analyse macro-économique du marché des boosters Magic'
+  return `${countStr}. ${m}Tendances globales, tops hausses, baisses et ratios EV sur le marché européen.`
+})
+
+useSeoMeta({
+  title: 'Tendances du marché scellé | MTG Stats',
+  ogTitle: 'Tendances du marché scellé | MTG Stats',
+  description: () => seoDescription.value,
+  ogDescription: () => seoDescription.value,
+  ogUrl: () => `${siteUrl.value}/market`,
+  ogType: 'website'
+})
 </script>
 
 <template>

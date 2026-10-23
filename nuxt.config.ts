@@ -14,9 +14,16 @@ export default defineNuxtConfig({
           name: 'description',
           content:
             'Suivi mensuel des prix des boosters scellés Magic: The Gathering sur le marché européen : variations, historique et tendances.'
-        }
+        },
+        { name: 'theme-color', content: '#5b8def' },
+        { property: 'og:site_name', content: 'MTG Stats' },
+        { property: 'og:type', content: 'website' },
+        { name: 'twitter:card', content: 'summary' }
       ],
       link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'shortcut icon', href: '/favicon.svg' },
+        { rel: 'apple-touch-icon', href: '/logo.svg' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         {
@@ -30,6 +37,9 @@ export default defineNuxtConfig({
     // Surchargés au runtime par NUXT_ADMIN_PASSWORD / NUXT_SESSION_SECRET
     adminPassword: '',
     sessionSecret: '',
-    syncSecret: ''
+    syncSecret: '',
+    public: {
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'https://mtg-stats.aeroliths.fr'
+    }
   }
 })

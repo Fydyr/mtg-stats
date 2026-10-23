@@ -147,7 +147,18 @@ const eur = (n: number | null | undefined) =>
     ? '-'
     : new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 
-useHead({ title: 'Comparateur de boîtes de boosters | MTG Stats' })
+const reqUrl = useRequestURL()
+const config = useRuntimeConfig()
+const siteUrl = computed(() => reqUrl.origin || (config.public.siteUrl as string) || 'https://mtg-stats.aeroliths.fr')
+
+useSeoMeta({
+  title: 'Comparateur de boîtes de boosters | MTG Stats',
+  ogTitle: 'Comparateur de boîtes de boosters | MTG Stats',
+  description: 'Comparez les trajectoires de prix et les performances relatives de plusieurs boîtes de boosters Magic: The Gathering sur le marché européen.',
+  ogDescription: 'Comparez les trajectoires de prix et les performances relatives de plusieurs boîtes de boosters Magic: The Gathering sur le marché européen.',
+  ogUrl: () => `${siteUrl.value}/compare`,
+  ogType: 'website'
+})
 </script>
 
 <template>
