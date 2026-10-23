@@ -162,6 +162,9 @@ export function cardmarketLink(
 }
 
 export function variation(current: number | null, previous: number | null) {
-  if (current == null || previous == null || previous === 0) return null
-  return ((current - previous) / previous) * 100
+  if (current == null || previous == null || previous <= 0 || current <= 0) return null
+  const diff = ((current - previous) / previous) * 100
+  // Une chute à -100% ou proche de 0 est le signe d'un bug d'import ou d'absence de prix
+  if (diff <= -95) return null
+  return diff
 }

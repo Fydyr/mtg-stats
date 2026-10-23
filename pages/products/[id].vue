@@ -111,11 +111,22 @@ const options = {
   }
 }
 
+const isVintage = computed(() => data.value?.releaseDate ? new Date(data.value.releaseDate).getFullYear() < 2003 : false)
+const isBox = computed(() => data.value?.category === 'BOOSTER_BOX' && (data.value?.type === 'DRAFT' || data.value?.type === 'PLAY' || data.value?.type === 'SET'))
+
 const first = computed(() => filteredHistory.value[0]?.price)
 const last = computed(() => filteredHistory.value.at(-1)?.price)
-const lastEv = computed(() => filteredHistory.value.at(-1)?.ev)
-const total = computed(() => first.value && last.value ? ((last.value - first.value) / first.value) * 100 : null)
-const evRatio = computed(() => (lastEv.value != null && last.value != null && last.value > 0) ? Math.round((lastEv.value / last.value) * 100) : null)
+const lastEv = computed(() => (isBox.value && !isVintage.value) ? filteredHistory.value.at(-1)?.ev : null)
+const total = computed(() => {
+  if (!first.value || !last.value || first.value <= 0 || last.value <= 0) return null
+  const diff = ((last.value - first.value) / first.value) * 100
+  return diff <= -95 ? null : diff
+})
+const evRatio = computed(() => {
+  if (!isBox.value || isVintage.value || lastEv.value == null || last.value == null || last.value <= 0) return null
+  const ratio = Math.round((lastEv.value / last.value) * 100)
+  return ratio >= 15 && ratio <= 250 ? ratio : null
+})
 
 const { getIcon } = useSetIcons()
 
@@ -125,17 +136,20 @@ const siteUrl = computed(() => reqUrl.origin || (config.public.siteUrl as string
 
 const lastPrice = computed(() => {
   const history = data.value?.history ?? []
-  return history.at(-1)?.price ?? null
+  const p = history.at(-1)?.price ?? null
+  return p != null && p > 0 ? p : null
 })
 
 const prevPrice = computed(() => {
   const history = data.value?.history ?? []
-  return history.length >= 2 ? history.at(-2)?.price ?? null : null
+  const p = history.length >= 2 ? history.at(-2)?.price ?? null : null
+  return p != null && p > 0 ? p : null
 })
 
 const monthDiff = computed(() => {
   if (lastPrice.value == null || prevPrice.value == null || prevPrice.value <= 0) return null
-  return ((lastPrice.value - prevPrice.value) / prevPrice.value) * 100
+  const diff = ((lastPrice.value - prevPrice.value) / prevPrice.value) * 100
+  return diff <= -95 ? null : diff
 })
 
 const pageTitle = computed(() => {

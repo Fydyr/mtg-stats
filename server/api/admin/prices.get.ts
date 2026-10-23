@@ -21,6 +21,8 @@ export default defineEventHandler(async (event) => {
   return products.map((p) => {
     const currentSnap = p.prices.find((s) => s.month === month)
     const prevSnap = p.prices.find((s) => s.month < month && Number(s.price) > 0)
+    const rawPrice = currentSnap ? Number(currentSnap.price) : NaN
+    const price = Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : NaN
     return {
       id: p.id,
       name: p.name,
@@ -31,8 +33,8 @@ export default defineEventHandler(async (event) => {
       standardLegalUntil: p.standardLegalUntil ? p.standardLegalUntil.toISOString().slice(0, 10) : '',
       stock: p.stock ?? null,
       cardmarketUrl: p.cardmarketUrl ?? '',
-      price: Number(currentSnap?.price ?? NaN),
-      ev: currentSnap?.ev != null ? Number(currentSnap.ev) : null,
+      price,
+      ev: currentSnap?.ev != null && Number(currentSnap.ev) > 0 ? Number(currentSnap.ev) : null,
       previous: Number(prevSnap?.price ?? NaN)
     }
   })

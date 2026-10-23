@@ -35,14 +35,18 @@ export default defineEventHandler(async () => {
     const p6 = byMonth.get(m6) ?? p.prices.find((s) => s.month <= m6)?.price ?? null
 
     const currentSnap = p.prices.find((s) => s.month === month)
-    const currentEv = currentSnap?.ev != null ? Number(currentSnap.ev) : null
+    const rawEv = currentSnap?.ev != null ? Number(currentSnap.ev) : null
+    const isVintage = p.releaseDate ? new Date(p.releaseDate).getFullYear() < 2003 : false
+    const isBox = ((p as any).category || 'BOOSTER_BOX') === 'BOOSTER_BOX' && (p.type === 'DRAFT' || p.type === 'PLAY' || p.type === 'SET')
+    const currentEv = (rawEv != null && rawEv > 0 && isBox && !isVintage && rawEv < 3000) ? rawEv : null
 
     const var1m = variation(current, previous)
     const var3m = variation(current, p3 ? Number(p3) : null)
     const var6m = variation(current, p6 ? Number(p6) : null)
-    const evRatio = (currentEv != null && current != null && current > 0)
+    const rawEvRatio = (currentEv != null && current != null && current > 0)
       ? Math.round((currentEv / current) * 100)
       : null
+    const evRatio = (rawEvRatio != null && rawEvRatio >= 15 && rawEvRatio <= 250) ? rawEvRatio : null
 
     return {
       id: p.id,
@@ -59,7 +63,7 @@ export default defineEventHandler(async () => {
       var3m,
       var6m
     }
-  }).filter((i) => i.price != null && i.price > 0)
+  }).filter((i) => i.price != null && i.price > 0 && (i.var1m == null || i.var1m > -95))
 
   // 1. Tendances globales
   const withVar1m = items.filter((i) => i.var1m != null)

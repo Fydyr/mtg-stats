@@ -121,17 +121,33 @@ function matchesPriceRange(price: number | null, rangeVal: string): boolean {
 }
 
 const items = computed(() => {
-  return (data.value?.items ?? []).map((i) => ({
-    ...i,
-    category: (i.category || 'BOOSTER_BOX') as 'BOOSTER_BOX' | 'SINGLE_BOOSTER' | 'PRECON_DECK',
-    evRatio: (i.ev != null && i.price != null && i.price > 0) ? Math.round((i.ev / i.price) * 100) : null
-  }))
+  return (data.value?.items ?? []).map((i) => {
+    const isVintage = i.releaseDate ? new Date(i.releaseDate).getFullYear() < 2003 : false
+    const rawEvRatio = (i.ev != null && i.price != null && i.price > 0 && !isVintage)
+      ? Math.round((i.ev / i.price) * 100)
+      : null
+    // L'ouverture d'une boîte est réaliste entre 15% et 250% (au-delà, anomalie de données)
+    const evRatio = (rawEvRatio != null && rawEvRatio >= 15 && rawEvRatio <= 250) ? rawEvRatio : null
+
+    // Si le prix est <= 0 ou la variation <= -95% (bug d'import à 0€), on assainit les valeurs
+    const price = (i.price != null && i.price > 0) ? i.price : null
+    const var1m = (i.var1m != null && i.var1m > -95 && price != null) ? i.var1m : null
+
+    return {
+      ...i,
+      price,
+      var1m,
+      category: (i.category || 'BOOSTER_BOX') as 'BOOSTER_BOX' | 'SINGLE_BOOSTER' | 'PRECON_DECK',
+      evRatio
+    }
+  })
 })
 
 const rows = computed(() => {
   const q = search.value.toLowerCase()
   const list = items.value.filter((i) => {
-    if (i.price == null) return false
+    if (i.price == null || i.price <= 0) return false
+    if (i.var1m != null && i.var1m <= -95) return false
     if (i.category !== props.category) return false
     if (!i.name.toLowerCase().includes(q)) return false
 
@@ -174,6 +190,7 @@ const selectedTypeLabel = computed(() => {
 
 const categoryItems = computed(() => {
   return items.value.filter((i) => {
+    if (i.price == null || i.price <= 0) return false
     if (i.category !== props.category) return false
     if (props.category === 'PRECON_DECK') {
       return deckType.value === 'ALL' || (i.deckType || 'OTHER') === deckType.value
@@ -183,7 +200,7 @@ const categoryItems = computed(() => {
   })
 })
 
-const withVar = computed(() => categoryItems.value.filter((i) => i.var1m != null))
+const withVar = computed(() => categoryItems.value.filter((i) => i.var1m != null && i.var1m > -95 && i.price != null && i.price > 0))
 const best = computed(() => [...withVar.value].sort((a, b) => b.var1m! - a.var1m!)[0])
 const worst = computed(() => [...withVar.value].sort((a, b) => a.var1m! - b.var1m!)[0])
 const avgVar = computed(() =>

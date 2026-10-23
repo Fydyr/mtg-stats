@@ -20,11 +20,20 @@ const { data } = await useFetch<{ month: string | null; items: Item[] }>('/api/p
 const { getIcon } = useSetIcons()
 
 const items = computed(() => {
-  return (data.value?.items ?? []).map((i) => ({
-    ...i,
-    category: (i.category || 'BOOSTER_BOX') as 'BOOSTER_BOX' | 'SINGLE_BOOSTER' | 'PRECON_DECK',
-    evRatio: (i.ev != null && i.price != null && i.price > 0) ? Math.round((i.ev / i.price) * 100) : null
-  }))
+  return (data.value?.items ?? [])
+    .filter((i) => i.price != null && i.price > 0 && (i.var1m == null || i.var1m > -95))
+    .map((i) => {
+      const isVintage = i.releaseDate ? new Date(i.releaseDate).getFullYear() < 2003 : false
+      const rawEvRatio = (i.ev != null && i.price != null && i.price > 0 && !isVintage)
+        ? Math.round((i.ev / i.price) * 100)
+        : null
+      const evRatio = (rawEvRatio != null && rawEvRatio >= 15 && rawEvRatio <= 250) ? rawEvRatio : null
+      return {
+        ...i,
+        category: (i.category || 'BOOSTER_BOX') as 'BOOSTER_BOX' | 'SINGLE_BOOSTER' | 'PRECON_DECK',
+        evRatio
+      }
+    })
 })
 
 // Comptages par catégorie
@@ -37,22 +46,28 @@ const counts = computed(() => {
   return c
 })
 
-// Produits avec variation 1 mois
-const withVar = computed(() => items.value.filter((i) => i.var1m != null))
+// Produits avec variation 1 mois (exclut les bugs à -100%)
+const withVar = computed(() => items.value.filter((i) => i.var1m != null && i.var1m > -95 && i.price != null && i.price > 0))
 const avgVar = computed(() =>
   withVar.value.length ? withVar.value.reduce((s, i) => s + i.var1m!, 0) / withVar.value.length : null
 )
 
-// Plus forte hausse générale
+// Plus forte hausse et plus forte baisse générales
 const topGainer = computed(() => [...withVar.value].sort((a, b) => b.var1m! - a.var1m!)[0])
+const topDrop = computed(() => [...withVar.value].sort((a, b) => a.var1m! - b.var1m!)[0])
 
-// Meilleur ratio EV
+// Meilleur ratio EV (Boîte moderne uniquement, ratio réaliste)
 const withEv = computed(() => items.value.filter((i) => i.evRatio != null && i.category === 'BOOSTER_BOX'))
 const topEv = computed(() => [...withEv.value].sort((a, b) => b.evRatio! - a.evRatio!)[0])
 
 // Top 5 des hausses du mois
 const top5Gainers = computed(() =>
   [...withVar.value].sort((a, b) => b.var1m! - a.var1m!).slice(0, 5)
+)
+
+// Top 5 des baisses du mois (filtrées sans les bugs -100%)
+const top5Losers = computed(() =>
+  [...withVar.value].filter((i) => i.var1m! < 0).sort((a, b) => a.var1m! - b.var1m!).slice(0, 5)
 )
 
 // Top 5 des opportunités EV > Prix
@@ -116,6 +131,11 @@ useSeoMeta({
         <div class="label">Plus forte hausse</div>
         <div class="value up">{{ pct(topGainer?.var1m ?? null) }}</div>
         <div class="sub">{{ topGainer?.name ?? '-' }}</div>
+      </NuxtLink>
+      <NuxtLink :to="topDrop ? `/products/${topDrop.id}` : '#'" class="card stat stat-link">
+        <div class="label">Plus forte baisse</div>
+        <div class="value down">{{ pct(topDrop?.var1m ?? null) }}</div>
+        <div class="sub">{{ topDrop?.name ?? '-' }}</div>
       </NuxtLink>
       <NuxtLink :to="topEv ? `/products/${topEv.id}` : '#'" class="card stat stat-link">
         <div class="label">Meilleur ratio EV (Boîte)</div>
@@ -197,7 +217,7 @@ useSeoMeta({
               <div>
                 <NuxtLink :to="`/products/${item.id}`" class="mini-row-title">{{ item.name }}</NuxtLink>
                 <div class="muted" style="font-size:0.75rem;">
-                  {{ item.category === 'PRECON_DECK' ? (item.deckType || 'Deck') : item.type }}
+                  {{ item.category === 'PRECON_DECK' ? (item.deckType || 'Deck') : item.category === 'SINGLE_BOOSTER' ? 'Booster' : `Boîte ${item.type}` }}
                 </div>
               </div>
             </div>
@@ -205,6 +225,47 @@ useSeoMeta({
               <span style="font-weight:700;">{{ eur(item.price) }}</span>
               <span class="tag-var up">{{ pct(item.var1m) }}</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOP BAISSES -->
+      <div class="card highlight-card">
+        <div class="highlight-header">
+          <h3 style="margin:0; font-size:1.15rem;">📉 Plus fortes baisses du mois</h3>
+          <span class="muted" style="font-size:0.8rem;">1 mois</span>
+        </div>
+        <div class="mini-list">
+          <div v-for="item in top5Losers" :key="item.id" class="mini-row">
+            <div class="mini-row-info">
+              <img
+                v-if="item.imageUrl"
+                :src="item.imageUrl"
+                :alt="item.name"
+                class="mini-row-thumb"
+                loading="lazy"
+              />
+              <img
+                v-else-if="getIcon(item.name)?.icon"
+                :src="getIcon(item.name)!.icon"
+                :alt="getIcon(item.name)!.code"
+                class="set-icon"
+                loading="lazy"
+              />
+              <div>
+                <NuxtLink :to="`/products/${item.id}`" class="mini-row-title">{{ item.name }}</NuxtLink>
+                <div class="muted" style="font-size:0.75rem;">
+                  {{ item.category === 'PRECON_DECK' ? (item.deckType || 'Deck') : item.category === 'SINGLE_BOOSTER' ? 'Booster' : `Boîte ${item.type}` }}
+                </div>
+              </div>
+            </div>
+            <div class="mini-row-numbers">
+              <span style="font-weight:700;">{{ eur(item.price) }}</span>
+              <span class="tag-var down">{{ pct(item.var1m) }}</span>
+            </div>
+          </div>
+          <div v-if="!top5Losers.length" class="muted" style="text-align:center; padding:20px;">
+            Aucune baisse ce mois-ci
           </div>
         </div>
       </div>
