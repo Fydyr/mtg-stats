@@ -60,15 +60,96 @@ const topDrop = computed(() => [...withVar.value].sort((a, b) => a.var1m! - b.va
 const withEv = computed(() => items.value.filter((i) => i.evRatio != null && i.category === 'BOOSTER_BOX'))
 const topEv = computed(() => [...withEv.value].sort((a, b) => b.evRatio! - a.evRatio!)[0])
 
-// Top 5 des hausses du mois
-const top5Gainers = computed(() =>
-  [...withVar.value].sort((a, b) => b.var1m! - a.var1m!).slice(0, 5)
-)
+// Filtre de catégorie pour la section des tops du mois
+const activeHighlightCategory = ref<'ALL' | 'BOOSTER_BOX' | 'SINGLE_BOOSTER' | 'PRECON_DECK'>('ALL')
 
-// Top 5 des baisses du mois (filtrées sans les bugs -100%)
-const top5Losers = computed(() =>
-  [...withVar.value].filter((i) => i.var1m! < 0).sort((a, b) => a.var1m! - b.var1m!).slice(0, 5)
-)
+// Top 5 des hausses du mois (intègre Boîtes, Boosters et Decks)
+const top5Gainers = computed(() => {
+  if (activeHighlightCategory.value !== 'ALL') {
+    return [...withVar.value]
+      .filter((i) => i.category === activeHighlightCategory.value)
+      .sort((a, b) => b.var1m! - a.var1m!)
+      .slice(0, 5)
+  }
+
+  // En mode "Tous" : assurer l'intégration des Boîtes, Boosters et Decks
+  const bestBoxes = [...withVar.value].filter((i) => i.category === 'BOOSTER_BOX').sort((a, b) => b.var1m! - a.var1m!)
+  const bestBoosters = [...withVar.value].filter((i) => i.category === 'SINGLE_BOOSTER').sort((a, b) => b.var1m! - a.var1m!)
+  const bestDecks = [...withVar.value].filter((i) => i.category === 'PRECON_DECK').sort((a, b) => b.var1m! - a.var1m!)
+
+  const mixed: Item[] = []
+  const pickedIds = new Set<number>()
+
+  const addUnique = (item?: Item) => {
+    if (item && !pickedIds.has(item.id)) {
+      mixed.push(item)
+      pickedIds.add(item.id)
+    }
+  }
+
+  // Sélectionne les meilleurs de chaque catégorie
+  addUnique(bestBoxes[0])
+  addUnique(bestBoosters[0])
+  addUnique(bestDecks[0])
+  addUnique(bestBoxes[1])
+  addUnique(bestBoosters[1])
+  addUnique(bestDecks[1])
+
+  // Complète si besoin avec les meilleures variations générales
+  if (mixed.length < 5) {
+    const generalTop = [...withVar.value].sort((a, b) => b.var1m! - a.var1m!)
+    for (const g of generalTop) {
+      addUnique(g)
+      if (mixed.length >= 5) break
+    }
+  }
+
+  return mixed.sort((a, b) => b.var1m! - a.var1m!).slice(0, 5)
+})
+
+// Top 5 des baisses du mois (intègre Boîtes, Boosters et Decks)
+const top5Losers = computed(() => {
+  const losersPool = withVar.value.filter((i) => i.var1m! < 0)
+
+  if (activeHighlightCategory.value !== 'ALL') {
+    return [...losersPool]
+      .filter((i) => i.category === activeHighlightCategory.value)
+      .sort((a, b) => a.var1m! - b.var1m!)
+      .slice(0, 5)
+  }
+
+  // En mode "Tous" : assurer l'intégration des Boîtes, Boosters et Decks
+  const worstBoxes = [...losersPool].filter((i) => i.category === 'BOOSTER_BOX').sort((a, b) => a.var1m! - b.var1m!)
+  const worstBoosters = [...losersPool].filter((i) => i.category === 'SINGLE_BOOSTER').sort((a, b) => a.var1m! - b.var1m!)
+  const worstDecks = [...losersPool].filter((i) => i.category === 'PRECON_DECK').sort((a, b) => a.var1m! - b.var1m!)
+
+  const mixed: Item[] = []
+  const pickedIds = new Set<number>()
+
+  const addUnique = (item?: Item) => {
+    if (item && !pickedIds.has(item.id)) {
+      mixed.push(item)
+      pickedIds.add(item.id)
+    }
+  }
+
+  addUnique(worstBoxes[0])
+  addUnique(worstBoosters[0])
+  addUnique(worstDecks[0])
+  addUnique(worstBoxes[1])
+  addUnique(worstBoosters[1])
+  addUnique(worstDecks[1])
+
+  if (mixed.length < 5) {
+    const generalWorst = [...losersPool].sort((a, b) => a.var1m! - b.var1m!)
+    for (const w of generalWorst) {
+      addUnique(w)
+      if (mixed.length >= 5) break
+    }
+  }
+
+  return mixed.sort((a, b) => a.var1m! - b.var1m!).slice(0, 5)
+})
 
 // Top 5 des opportunités EV > Prix
 const top5EvOpportunities = computed(() =>
@@ -130,12 +211,18 @@ useSeoMeta({
       <NuxtLink :to="topGainer ? `/products/${topGainer.id}` : '#'" class="card stat stat-link">
         <div class="label">Plus forte hausse</div>
         <div class="value up">{{ pct(topGainer?.var1m ?? null) }}</div>
-        <div class="sub">{{ topGainer?.name ?? '-' }}</div>
+        <div class="sub">
+          {{ topGainer?.name ?? '-' }}
+          <span v-if="topGainer">· {{ topGainer.category === 'PRECON_DECK' ? 'Deck' : topGainer.category === 'SINGLE_BOOSTER' ? 'Booster' : 'Boîte' }}</span>
+        </div>
       </NuxtLink>
       <NuxtLink :to="topDrop ? `/products/${topDrop.id}` : '#'" class="card stat stat-link">
         <div class="label">Plus forte baisse</div>
         <div class="value down">{{ pct(topDrop?.var1m ?? null) }}</div>
-        <div class="sub">{{ topDrop?.name ?? '-' }}</div>
+        <div class="sub">
+          {{ topDrop?.name ?? '-' }}
+          <span v-if="topDrop">· {{ topDrop.category === 'PRECON_DECK' ? 'Deck' : topDrop.category === 'SINGLE_BOOSTER' ? 'Booster' : 'Boîte' }}</span>
+        </div>
       </NuxtLink>
       <NuxtLink :to="topEv ? `/products/${topEv.id}` : '#'" class="card stat stat-link">
         <div class="label">Meilleur ratio EV (Boîte)</div>
@@ -189,12 +276,52 @@ useSeoMeta({
       </div>
     </section>
 
-    <!-- DEUX BLOCS : TOP HAUSSES & OPPORTUNITÉS EV -->
+    <!-- EN-TETE DE LA SECTION TENDANCES AVEC FILTRE PAR CATEGORIE -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 8px;">
+      <div>
+        <h2 class="section-title" style="margin: 0;">Tendances du marché</h2>
+        <p class="muted" style="margin: 4px 0 0; font-size: 0.85rem;">
+          Les plus fortes variations du mois sur les boîtes, boosters individuels et decks préconstruits.
+        </p>
+      </div>
+      <div class="chips">
+        <button
+          class="chip"
+          :class="{ active: activeHighlightCategory === 'ALL' }"
+          @click="activeHighlightCategory = 'ALL'"
+        >
+          Tous les scellés
+        </button>
+        <button
+          class="chip"
+          :class="{ active: activeHighlightCategory === 'BOOSTER_BOX' }"
+          @click="activeHighlightCategory = 'BOOSTER_BOX'"
+        >
+          📦 Boîtes
+        </button>
+        <button
+          class="chip"
+          :class="{ active: activeHighlightCategory === 'SINGLE_BOOSTER' }"
+          @click="activeHighlightCategory = 'SINGLE_BOOSTER'"
+        >
+          🃏 Boosters
+        </button>
+        <button
+          class="chip"
+          :class="{ active: activeHighlightCategory === 'PRECON_DECK' }"
+          @click="activeHighlightCategory = 'PRECON_DECK'"
+        >
+          ⚔️ Decks
+        </button>
+      </div>
+    </div>
+
+    <!-- BLOCS DES TOPS : TOP HAUSSES, TOP BAISSES & OPPORTUNITÉS EV -->
     <section class="highlights-grid">
       <!-- TOP HAUSSES -->
       <div class="card highlight-card">
         <div class="highlight-header">
-          <h3 style="margin:0; font-size:1.15rem;">🔥 Plus fortes hausses du mois</h3>
+          <h3 style="margin:0; font-size:1.15rem;">🔥 Plus fortes hausses</h3>
           <span class="muted" style="font-size:0.8rem;">1 mois</span>
         </div>
         <div class="mini-list">
@@ -216,8 +343,28 @@ useSeoMeta({
               />
               <div>
                 <NuxtLink :to="`/products/${item.id}`" class="mini-row-title">{{ item.name }}</NuxtLink>
-                <div class="muted" style="font-size:0.75rem;">
-                  {{ item.category === 'PRECON_DECK' ? (item.deckType || 'Deck') : item.category === 'SINGLE_BOOSTER' ? 'Booster' : `Boîte ${item.type}` }}
+                <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+                  <span
+                    v-if="item.category === 'PRECON_DECK'"
+                    class="badge"
+                    style="background: rgba(245, 166, 35, 0.15); color: #f5a623; border: 1px solid rgba(245, 166, 35, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                  >
+                    ⚔️ {{ item.deckType || 'Deck' }}
+                  </span>
+                  <span
+                    v-else-if="item.category === 'SINGLE_BOOSTER'"
+                    class="badge"
+                    style="background: rgba(178, 102, 255, 0.15); color: #b266ff; border: 1px solid rgba(178, 102, 255, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                  >
+                    🃏 Booster
+                  </span>
+                  <span
+                    v-else
+                    class="badge"
+                    style="background: rgba(91, 141, 239, 0.15); color: #7aa7ff; border: 1px solid rgba(91, 141, 239, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                  >
+                    📦 Boîte {{ item.type }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -232,7 +379,7 @@ useSeoMeta({
       <!-- TOP BAISSES -->
       <div class="card highlight-card">
         <div class="highlight-header">
-          <h3 style="margin:0; font-size:1.15rem;">📉 Plus fortes baisses du mois</h3>
+          <h3 style="margin:0; font-size:1.15rem;">📉 Plus fortes baisses</h3>
           <span class="muted" style="font-size:0.8rem;">1 mois</span>
         </div>
         <div class="mini-list">
@@ -254,8 +401,28 @@ useSeoMeta({
               />
               <div>
                 <NuxtLink :to="`/products/${item.id}`" class="mini-row-title">{{ item.name }}</NuxtLink>
-                <div class="muted" style="font-size:0.75rem;">
-                  {{ item.category === 'PRECON_DECK' ? (item.deckType || 'Deck') : item.category === 'SINGLE_BOOSTER' ? 'Booster' : `Boîte ${item.type}` }}
+                <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+                  <span
+                    v-if="item.category === 'PRECON_DECK'"
+                    class="badge"
+                    style="background: rgba(245, 166, 35, 0.15); color: #f5a623; border: 1px solid rgba(245, 166, 35, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                  >
+                    ⚔️ {{ item.deckType || 'Deck' }}
+                  </span>
+                  <span
+                    v-else-if="item.category === 'SINGLE_BOOSTER'"
+                    class="badge"
+                    style="background: rgba(178, 102, 255, 0.15); color: #b266ff; border: 1px solid rgba(178, 102, 255, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                  >
+                    🃏 Booster
+                  </span>
+                  <span
+                    v-else
+                    class="badge"
+                    style="background: rgba(91, 141, 239, 0.15); color: #7aa7ff; border: 1px solid rgba(91, 141, 239, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                  >
+                    📦 Boîte {{ item.type }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -265,7 +432,7 @@ useSeoMeta({
             </div>
           </div>
           <div v-if="!top5Losers.length" class="muted" style="text-align:center; padding:20px;">
-            Aucune baisse ce mois-ci
+            Aucune baisse enregistrée
           </div>
         </div>
       </div>
