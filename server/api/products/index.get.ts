@@ -33,6 +33,23 @@ export default defineEventHandler(async () => {
   const m3 = shiftMonth(month, -3)
   const m6 = shiftMonth(month, -6)
 
+  // Indexation des EV des boîtes standard pour calculer proportionnellement l'EV des boosters individuels
+  const boxEvBySetAndType = new Map<string, number>()
+  for (const p of products) {
+    if (((p as any).category || 'BOOSTER_BOX') === 'BOOSTER_BOX') {
+      const snap = p.prices.find((s) => s.month === month)
+      const ev = snap?.ev != null ? Number(snap.ev) : null
+      const isVintage = p.releaseDate ? new Date(p.releaseDate).getFullYear() < 2003 : false
+      const isTheme = p.name.toLowerCase().includes('theme')
+      const isBox = (p.type === 'DRAFT' || p.type === 'PLAY' || p.type === 'SET')
+      if (ev != null && ev > 0 && isBox && !isVintage && !isTheme && ev < 3000) {
+        const key = `${p.name.toLowerCase().trim()}_${p.type}`
+        boxEvBySetAndType.set(key, ev)
+        boxEvBySetAndType.set(p.name.toLowerCase().trim(), ev)
+      }
+    }
+  }
+
   const items = products.map((p) => {
     const byMonth = new Map(p.prices.map((s) => [s.month, Number(s.price)]))
     const rawCurrent = byMonth.get(month) ?? null
@@ -52,10 +69,22 @@ export default defineEventHandler(async () => {
     const currentSnap = p.prices.find((s) => s.month === month)
     const rawEv = currentSnap?.ev != null ? Number(currentSnap.ev) : null
     
-    // L'EV ne s'applique qu'aux boîtes de boosters modernes (pas aux boosters unitaires, decks ou reliques vintage)
     const isVintage = p.releaseDate ? new Date(p.releaseDate).getFullYear() < 2003 : false
-    const isBox = ((p as any).category || 'BOOSTER_BOX') === 'BOOSTER_BOX' && (p.type === 'DRAFT' || p.type === 'PLAY' || p.type === 'SET')
-    const currentEv = (rawEv != null && rawEv > 0 && isBox && !isVintage && rawEv < 3000) ? rawEv : null
+    const cat = (p as any).category || 'BOOSTER_BOX'
+    const isTheme = p.name.toLowerCase().includes('theme')
+    let currentEv: number | null = null
+
+    if (cat === 'BOOSTER_BOX') {
+      const isBox = (p.type === 'DRAFT' || p.type === 'PLAY' || p.type === 'SET')
+      currentEv = (rawEv != null && rawEv > 0 && isBox && !isVintage && !isTheme && rawEv < 3000) ? rawEv : null
+    } else if (cat === 'SINGLE_BOOSTER' && !isVintage) {
+      const key = `${p.name.toLowerCase().trim()}_${p.type}`
+      const parentBoxEv = boxEvBySetAndType.get(key) || boxEvBySetAndType.get(p.name.toLowerCase().trim())
+      if (parentBoxEv) {
+        const packCount = p.type === 'COLLECTOR' ? 12 : (p.type === 'SET' ? 30 : 36)
+        currentEv = Number((parentBoxEv / packCount).toFixed(2))
+      }
+    }
 
     return {
       id: p.id,

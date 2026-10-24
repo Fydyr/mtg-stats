@@ -151,12 +151,59 @@ const top5Losers = computed(() => {
   return mixed.sort((a, b) => a.var1m! - b.var1m!).slice(0, 5)
 })
 
-// Top 5 des opportunités EV > Prix
-const top5EvOpportunities = computed(() =>
-  [...items.value.filter((i) => i.category === 'BOOSTER_BOX' && i.evRatio != null && i.evRatio >= 100)]
+// Titre dynamique de la carte EV selon la catégorie sélectionnée
+const evHeaderTitle = computed(() => {
+  if (activeHighlightCategory.value === 'SINGLE_BOOSTER') return '💎 Boosters rentables à l\'ouverture'
+  if (activeHighlightCategory.value === 'PRECON_DECK') return '💎 Decks rentables à l\'ouverture'
+  if (activeHighlightCategory.value === 'BOOSTER_BOX') return '💎 Boîtes rentables à l\'ouverture'
+  return '💎 Scellés rentables à l\'ouverture'
+})
+
+// Top 5 des opportunités EV > Prix filtrées selon la catégorie active
+const top5EvOpportunities = computed(() => {
+  if (activeHighlightCategory.value !== 'ALL') {
+    return [...items.value]
+      .filter((i) => i.category === activeHighlightCategory.value && i.evRatio != null && i.evRatio >= 100)
+      .sort((a, b) => b.evRatio! - a.evRatio!)
+      .slice(0, 5)
+  }
+
+  // En mode "Tous les scellés" : intégrer équitablement Boîtes et Boosters rentables
+  const bestBoxes = [...items.value]
+    .filter((i) => i.category === 'BOOSTER_BOX' && i.evRatio != null && i.evRatio >= 100)
     .sort((a, b) => b.evRatio! - a.evRatio!)
-    .slice(0, 5)
-)
+  const bestBoosters = [...items.value]
+    .filter((i) => i.category === 'SINGLE_BOOSTER' && i.evRatio != null && i.evRatio >= 100)
+    .sort((a, b) => b.evRatio! - a.evRatio!)
+
+  const mixed: Item[] = []
+  const pickedIds = new Set<number>()
+
+  const addUnique = (item?: Item) => {
+    if (item && !pickedIds.has(item.id)) {
+      mixed.push(item)
+      pickedIds.add(item.id)
+    }
+  }
+
+  addUnique(bestBoxes[0])
+  addUnique(bestBoosters[0])
+  addUnique(bestBoxes[1])
+  addUnique(bestBoosters[1])
+  addUnique(bestBoxes[2])
+
+  if (mixed.length < 5) {
+    const generalTop = [...items.value]
+      .filter((i) => i.evRatio != null && i.evRatio >= 100)
+      .sort((a, b) => b.evRatio! - a.evRatio!)
+    for (const g of generalTop) {
+      addUnique(g)
+      if (mixed.length >= 5) break
+    }
+  }
+
+  return mixed.sort((a, b) => b.evRatio! - a.evRatio!).slice(0, 5)
+})
 
 const eur = (n: number | null) => n == null ? '-' : new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 const pct = (n: number | null) => n == null ? '-' : `${n > 0 ? '+' : ''}${n.toFixed(2).replace('.', ',')} %`
@@ -440,7 +487,7 @@ useSeoMeta({
       <!-- OPPORTUNITÉS EV > PRIX -->
       <div class="card highlight-card">
         <div class="highlight-header">
-          <h3 style="margin:0; font-size:1.15rem;">💎 Boîtes rentables à l'ouverture</h3>
+          <h3 style="margin:0; font-size:1.15rem;">{{ evHeaderTitle }}</h3>
           <span class="badge" style="background: rgba(76, 183, 130, 0.2); color: #4cb782;">EV &gt; Prix</span>
         </div>
         <div class="mini-list">
@@ -462,7 +509,29 @@ useSeoMeta({
               />
               <div>
                 <NuxtLink :to="`/products/${item.id}`" class="mini-row-title">{{ item.name }}</NuxtLink>
-                <div class="muted" style="font-size:0.75rem;">Boîte {{ item.type }}</div>
+                <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+                  <span
+                    v-if="item.category === 'PRECON_DECK'"
+                    class="badge"
+                    style="background: rgba(245, 166, 35, 0.15); color: #f5a623; border: 1px solid rgba(245, 166, 35, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                  >
+                    ⚔️ {{ item.deckType || 'Deck' }}
+                  </span>
+                  <span
+                    v-else-if="item.category === 'SINGLE_BOOSTER'"
+                    class="badge"
+                    style="background: rgba(178, 102, 255, 0.15); color: #b266ff; border: 1px solid rgba(178, 102, 255, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                  >
+                    🃏 Booster
+                  </span>
+                  <span
+                    v-else
+                    class="badge"
+                    style="background: rgba(91, 141, 239, 0.15); color: #7aa7ff; border: 1px solid rgba(91, 141, 239, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                  >
+                    📦 Boîte {{ item.type }}
+                  </span>
+                </div>
               </div>
             </div>
             <div class="mini-row-numbers">
@@ -470,8 +539,19 @@ useSeoMeta({
               <span class="tag-var up" :title="`EV : ${eur(item.ev)}`">{{ item.evRatio }} %</span>
             </div>
           </div>
-          <div v-if="!top5EvOpportunities.length" class="muted" style="text-align:center; padding:20px;">
-            Aucune boîte avec EV &gt; Prix ce mois-ci
+          <div v-if="!top5EvOpportunities.length" class="muted" style="text-align:center; padding:20px; font-size:0.85rem; line-height:1.4;">
+            <template v-if="activeHighlightCategory === 'PRECON_DECK'">
+              Les decks préconstruits ont un contenu fixe (cartes connues à l'avance sans tirage aléatoire). L'EV s'applique aux boîtes et boosters.
+            </template>
+            <template v-else-if="activeHighlightCategory === 'SINGLE_BOOSTER'">
+              Aucun booster individuel avec EV &gt; Prix ce mois-ci
+            </template>
+            <template v-else-if="activeHighlightCategory === 'BOOSTER_BOX'">
+              Aucune boîte avec EV &gt; Prix ce mois-ci
+            </template>
+            <template v-else>
+              Aucun scellé avec EV &gt; Prix ce mois-ci
+            </template>
           </div>
         </div>
       </div>
