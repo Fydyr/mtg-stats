@@ -1,4 +1,5 @@
 import { BoosterType } from '@prisma/client'
+import { syncProductReleaseDates } from './sync-release-dates'
 
 export function cardmarketSlugify(name: string): string {
   return name
@@ -250,6 +251,12 @@ export async function syncCardmarketData(
   }
 
   console.log(`[Cardmarket Sync] Terminé : ${totalProducts} produits traités (${itemsToSync.length} éligibles), ${totalPrices} prix enregistrés pour ${month}.`)
+
+  try {
+    await syncProductReleaseDates()
+  } catch (err: any) {
+    console.warn('[Cardmarket Sync] Synchronisation des dates de sortie différée :', err?.message || err)
+  }
 
   return {
     ok: true,

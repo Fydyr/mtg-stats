@@ -40,6 +40,7 @@ const loading = ref(false)
 const syncingSheet = ref(false)
 const syncingEv = ref(false)
 const syncingImages = ref(false)
+const syncingReleaseDates = ref(false)
 const sheetUrl = ref('https://docs.google.com/spreadsheets/d/1668tbtGyFHhB-x3c9b7ft546PK3fsKMR8eK7iLCh0ps')
 const toast = ref<{ msg: string; error?: boolean } | null>(null)
 const searchFilter = ref('')
@@ -226,6 +227,21 @@ async function syncImages() {
     notify(e?.statusMessage || 'Erreur lors de la synchronisation des images', true)
   } finally {
     syncingImages.value = false
+  }
+}
+
+async function syncReleaseDates() {
+  syncingReleaseDates.value = true
+  try {
+    const res = await $fetch<{ ok: boolean; totalChecked: number; updated: number; remainingWithoutDate: number }>('/api/admin/sync-release-dates', {
+      method: 'POST'
+    })
+    notify(`Synchronisation des dates réussie : ${res.updated} dates de sortie associées (${res.remainingWithoutDate} restants) !`)
+    await load()
+  } catch (e: any) {
+    notify(e?.statusMessage || 'Erreur lors de la synchronisation des dates de sortie', true)
+  } finally {
+    syncingReleaseDates.value = false
   }
 }
 
@@ -566,6 +582,9 @@ useSeoMeta({
       <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn ghost" :disabled="syncingImages" title="Télécharge et associe automatiquement les visuels officiels depuis MTGJSON / TCGplayer" @click="syncImages">
           {{ syncingImages ? 'Synchro Images...' : '🖼️ Synchroniser Images' }}
+        </button>
+        <button class="btn ghost" :disabled="syncingReleaseDates" title="Télécharge et associe automatiquement les dates de sortie des boosters, decks et boîtes depuis MTGJSON et Scryfall" @click="syncReleaseDates">
+          {{ syncingReleaseDates ? 'Dates...' : '🗓️ Synchroniser Dates' }}
         </button>
         <button class="btn ghost" :disabled="syncingEv" title="Récupère les Expected Values calculées depuis Dawnglare / TCG" @click="syncEv">
           {{ syncingEv ? 'Synchro EV...' : 'Synchroniser EV' }}

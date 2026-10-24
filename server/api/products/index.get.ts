@@ -1,10 +1,28 @@
 import { cardmarketLink, shiftMonth, variation } from '../../utils/months'
+import { syncProductReleaseDates } from '../../utils/sync-release-dates'
+
+let hasCheckedReleaseDates = false
 
 export default defineEventHandler(async () => {
+  // Déclenche une synchronisation des dates de sortie si des boosters/decks n'en ont pas
+  if (!hasCheckedReleaseDates) {
+    hasCheckedReleaseDates = true
+    const countMissing = await prisma.product.count({
+      where: {
+        category: { in: ['SINGLE_BOOSTER', 'PRECON_DECK'] },
+        releaseDate: null
+      }
+    })
+    if (countMissing > 0) {
+      await syncProductReleaseDates().catch((err) =>
+        console.warn('[ReleaseDates] Erreur de synchronisation automatique :', err?.message || err)
+      )
+    }
+  }
+
   const [products, latest] = await Promise.all([
     prisma.product.findMany({
-      include: { prices: { orderBy: { month: 'desc' } } },
-      orderBy: { releaseDate: 'asc' }
+      include: { prices: { orderBy: { month: 'desc' } } }
     }),
     prisma.priceSnapshot.aggregate({ _max: { month: true } })
   ])
@@ -57,6 +75,17 @@ export default defineEventHandler(async () => {
       var3m: variation(current, p3),
       var6m: variation(current, p6)
     }
+  })
+
+  // Tri par défaut du plus récent au plus ancien (nulls à la fin)
+  items.sort((a, b) => {
+    if (a.releaseDate == null && b.releaseDate == null) return a.name.localeCompare(b.name)
+    if (a.releaseDate == null) return 1
+    if (b.releaseDate == null) return -1
+    const da = new Date(a.releaseDate).getTime()
+    const db = new Date(b.releaseDate).getTime()
+    if (da !== db) return db - da // Du plus récent au plus ancien
+    return a.name.localeCompare(b.name)
   })
 
   return { month, items }

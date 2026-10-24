@@ -4,7 +4,7 @@ export default defineEventHandler(async () => {
   const [products, latest] = await Promise.all([
     prisma.product.findMany({
       include: { prices: { orderBy: { month: 'desc' } } },
-      orderBy: { releaseDate: 'asc' }
+      orderBy: [{ releaseDate: 'desc' }, { name: 'asc' }]
     }),
     prisma.priceSnapshot.aggregate({ _max: { month: true } })
   ])

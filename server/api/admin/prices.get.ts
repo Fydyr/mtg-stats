@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const products = await prisma.product.findMany({
-    orderBy: [{ releaseDate: 'asc' }, { name: 'asc' }],
+    orderBy: [{ releaseDate: 'desc' }, { name: 'asc' }],
     include: {
       prices: {
         where: { month: { lte: month } },

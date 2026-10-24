@@ -33,7 +33,7 @@ const era = ref('ALL')
 const priceRange = ref('ALL')
 const onlyProfitable = ref(false)
 const viewMode = ref<'table' | 'grid'>('table')
-const sortKey = ref<keyof Item>('var1m')
+const sortKey = ref<keyof Item>('releaseDate')
 const sortDir = ref<1 | -1>(-1)
 const selectedIds = ref<number[]>([])
 
@@ -68,12 +68,12 @@ const currentYear = new Date().getFullYear()
 const standardCutoffYear = currentYear - 3
 
 const ERAS = [
-  { v: 'ALL', l: 'Toutes les ères' },
-  { v: 'STANDARD', l: 'Standard (en cours & configuré)' },
-  { v: 'PIONEER', l: 'Pioneer (depuis 2012)' },
-  { v: 'MODERN', l: 'Modern (2003-2012)' },
-  { v: 'VINTAGE', l: 'Vintage (< 2003)' },
-  { v: 'MASTERS', l: 'Masters & Horizons' }
+  { v: 'ALL', l: 'Toutes les ères', title: 'Toutes les extensions' },
+  { v: 'STANDARD', l: 'Standard', title: 'Format Standard (en cours & configuré)' },
+  { v: 'PIONEER', l: 'Pioneer', title: 'Format Pioneer (depuis 2012)' },
+  { v: 'MODERN', l: 'Modern', title: 'Format Modern (2003-2012)' },
+  { v: 'VINTAGE', l: 'Vintage', title: 'Format Vintage (< 2003)' },
+  { v: 'MASTERS', l: 'Masters & Horizons', title: 'Séries Masters, Horizons et Remastered' }
 ] as const
 
 const PRICE_RANGES = [
@@ -169,6 +169,14 @@ const rows = computed(() => {
     if (av == null && bv == null) return 0
     if (av == null) return 1
     if (bv == null) return -1
+    if (k === 'releaseDate') {
+      const ta = new Date(av).getTime()
+      const tb = new Date(bv).getTime()
+      if (isNaN(ta) && isNaN(tb)) return 0
+      if (isNaN(ta)) return 1
+      if (isNaN(tb)) return -1
+      return (ta - tb) * sortDir.value
+    }
     if (typeof av === 'string') return av.localeCompare(bv) * sortDir.value
     return (av - bv) * sortDir.value
   })
@@ -393,6 +401,7 @@ onMounted(() => {
           :key="e.v"
           class="chip filter-sm"
           :class="{ active: era === e.v }"
+          :title="e.title"
           @click="era = e.v"
         >
           {{ e.l }}
