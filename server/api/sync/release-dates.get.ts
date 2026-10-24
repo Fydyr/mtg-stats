@@ -1,3 +1,3 @@
 export default defineEventHandler(() => {
-  throw createError({ statusCode: 404, statusMessage: 'Not Found' })
+  throw createError({ statusCode: 404, statusMessage: 'Not found' })
 })

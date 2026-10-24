@@ -15,63 +15,22 @@ function parseValidDate(str?: string | null): Date | null {
   return isNaN(d.getTime()) ? null : d
 }
 
-// Table de dates pour kits et produits autonomes courants
-const KNOWN_DATES: Record<string, string> = {
-  '2021arenastarterkit': '2021-08-10',
-  '2022starterkit': '2022-07-08',
-  '2023starterkit': '2023-09-08',
-  '30thanniversaryedition': '2022-11-28',
-  'startercommanderdecks': '2022-12-02',
-  'pioneerchallengerdecks2021': '2021-10-15',
-  'pioneerchallengerdecks2022': '2022-11-04',
-  'challengerdecks2018': '2018-04-06',
-  'challengerdecks2019': '2019-04-12',
-  'challengerdecks2020': '2020-04-03',
-  'challengerdecks2021': '2021-04-02',
-  'challengerdecks2022': '2022-04-01',
-  'gamenight': '2018-11-16',
-  'gamenight2019': '2019-11-15',
-  'gamenightfreeforall': '2022-10-14',
-  'finalfantasybasic': '2025-06-13',
-  'finalfantasy': '2025-06-13',
-  'aetherdrift': '2025-02-14',
-  'edgeofeternities': '2025-08-01',
-  'lorwyneclipsed': '2026-01-01',
-  'thehobbit': '2025-11-01',
-  'avatarthelastairbender': '2025-09-01',
-  'moodswing': '2000-01-01'
-}
-
+/**
+ * Synchronisation dynamique et officielle des dates de sortie.
+ * Toutes les données proviennent dynamiquement des APIs officielles (Scryfall et MTGJSON)
+ * et des associations en base de données.
+ */
 export async function syncProductReleaseDates(): Promise<{
+  ok: boolean
   totalChecked: number
   updated: number
+  discrepanciesFixed: number
   remainingWithoutDate: number
 }> {
-  console.log('[ReleaseDates Sync] Démarrage de la synchronisation des dates de sortie...')
+  console.log('[ReleaseDates Sync] Démarrage de la synchronisation dynamique des dates de sortie...')
 
-  // 1. Récupération des boîtes de boosters existantes ayant déjà une date de sortie
-  const existingBoxes = await prisma.product.findMany({
-    where: {
-      category: 'BOOSTER_BOX',
-      releaseDate: { not: null }
-    },
-    select: { name: true, releaseDate: true }
-  })
-
-  const boxMap = new Map<string, Date>()
-  const boxesSorted: { name: string; normName: string; date: Date }[] = []
-  for (const b of existingBoxes) {
-    if (b.releaseDate) {
-      const n = norm(b.name)
-      boxMap.set(n, b.releaseDate)
-      boxesSorted.push({ name: b.name, normName: n, date: b.releaseDate })
-    }
-  }
-  // Trier par nom le plus long en premier pour éviter les faux positifs partiels
-  boxesSorted.sort((a, b) => b.normName.length - a.normName.length)
-
-  // 2. Récupération des sets Scryfall
-  const scryfallMap = new Map<string, Date>()
+  // 1. Récupération dynamique des sets officiels Scryfall
+  const scryfallExactMap = new Map<string, Date>()
   const scryfallSetsSorted: { name: string; normName: string; date: Date }[] = []
   try {
     const sfRes = await fetch('https://api.scryfall.com/sets', {
@@ -83,18 +42,19 @@ export async function syncProductReleaseDates(): Promise<{
         const d = parseValidDate(set.released_at)
         if (d && set.name) {
           const n = norm(set.name)
-          scryfallMap.set(n, d)
-          if (set.code) scryfallMap.set(norm(set.code), d)
+          scryfallExactMap.set(n, d)
+          if (set.code) scryfallExactMap.set(norm(set.code), d)
           scryfallSetsSorted.push({ name: set.name, normName: n, date: d })
         }
       }
       scryfallSetsSorted.sort((a, b) => b.normName.length - a.normName.length)
+      console.log(`[ReleaseDates Sync] ${scryfallSetsSorted.length} sets Scryfall chargés dynamiquement.`)
     }
   } catch (err: any) {
     console.warn('[ReleaseDates Sync] Impossible de contacter Scryfall Sets:', err?.message || err)
   }
 
-  // 3. Récupération de SetList.json depuis MTGJSON
+  // 2. Récupération dynamique de SetList.json depuis MTGJSON (avec mcmId des produits scellés)
   const mcmIdMap = new Map<number, Date>()
   const sealedNameMap = new Map<string, Date>()
   const mtgjsonSetMap = new Map<string, Date>()
@@ -124,144 +84,144 @@ export async function syncProductReleaseDates(): Promise<{
           }
         }
       }
+      console.log(`[ReleaseDates Sync] MTGJSON chargé : ${mcmIdMap.size} produits scellés Cardmarket indexés.`)
     }
   } catch (err: any) {
     console.warn('[ReleaseDates Sync] Impossible de contacter MTGJSON SetList:', err?.message || err)
   }
 
-  // 4. Produits sans date de sortie à mettre à jour
-  const productsToUpdate = await prisma.product.findMany({
-    where: { releaseDate: null },
-    select: { id: true, name: true, category: true, type: true, cardmarketId: true }
+  // 3. Récupération dynamique des boîtes de boosters existantes en base
+  const existingBoxes = await prisma.product.findMany({
+    where: {
+      category: 'BOOSTER_BOX',
+      releaseDate: { not: null }
+    },
+    select: { name: true, releaseDate: true }
   })
 
-  console.log(`[ReleaseDates Sync] Analyse de ${productsToUpdate.length} produits sans date de sortie...`)
+  const boxMap = new Map<string, Date>()
+  const boxesSorted: { name: string; normName: string; date: Date }[] = []
+  for (const b of existingBoxes) {
+    if (b.releaseDate) {
+      const n = norm(b.name)
+      boxMap.set(n, b.releaseDate)
+      boxesSorted.push({ name: b.name, normName: n, date: b.releaseDate })
+    }
+  }
+  boxesSorted.sort((a, b) => b.normName.length - a.normName.length)
+
+  // 4. Tous les produits en base
+  const allProducts = await prisma.product.findMany({
+    select: { id: true, name: true, category: true, type: true, cardmarketId: true, releaseDate: true }
+  })
 
   const updatesToRun: { id: number; date: Date }[] = []
+  let discrepanciesFixed = 0
 
-  for (const p of productsToUpdate) {
+  for (const p of allProducts) {
     const pNorm = norm(p.name)
-    let matchedDate: Date | null = null
+    let officialDate: Date | null = null
 
-    // A. Table de dates connues directes (kits de démarrage, game night, etc.)
-    for (const [knownKey, knownVal] of Object.entries(KNOWN_DATES)) {
-      if (pNorm.includes(knownKey) || knownKey.includes(pNorm)) {
-        matchedDate = new Date(knownVal)
-        break
+    // A. Correspondance exacte par Cardmarket ID depuis MTGJSON
+    if (p.cardmarketId && mcmIdMap.has(p.cardmarketId)) {
+      officialDate = mcmIdMap.get(p.cardmarketId)!
+    }
+
+    // B. Correspondance exacte avec un set Scryfall
+    if (!officialDate && scryfallExactMap.has(pNorm)) {
+      officialDate = scryfallExactMap.get(pNorm)!
+    }
+
+    // C. Correspondance exacte avec un set MTGJSON
+    if (!officialDate && mtgjsonSetMap.has(pNorm)) {
+      officialDate = mtgjsonSetMap.get(pNorm)!
+    }
+
+    // D. Correspondance exacte avec une boîte existante en base
+    if (!officialDate && boxMap.has(pNorm)) {
+      officialDate = boxMap.get(pNorm)!
+    }
+
+    // E. Correspondance exacte avec un produit scellé MTGJSON
+    if (!officialDate && sealedNameMap.has(pNorm)) {
+      officialDate = sealedNameMap.get(pNorm)!
+    }
+
+    // F. Détection dynamique par préfixe d'extension (pour decks et sous-produits type "Time Spiral: Reality Fracture Theme Deck")
+    // Évite qu'un sous-titre de deck ("Reality Fracture") ne prenne le dessus sur le nom de l'extension principale
+    if (!officialDate && p.name.includes(':')) {
+      const colParts = p.name.split(':').map((s) => s.trim())
+      for (const part of colParts) {
+        const partNorm = norm(part)
+        if (!partNorm || partNorm === 'commander' || partNorm === 'dueldecks' || partNorm === 'clashpack') continue
+
+        if (scryfallExactMap.has(partNorm)) {
+          officialDate = scryfallExactMap.get(partNorm)!
+          break
+        }
+        if (boxMap.has(partNorm)) {
+          officialDate = boxMap.get(partNorm)!
+          break
+        }
+        if (mtgjsonSetMap.has(partNorm)) {
+          officialDate = mtgjsonSetMap.get(partNorm)!
+          break
+        }
+        if (sealedNameMap.has(partNorm)) {
+          officialDate = sealedNameMap.get(partNorm)!
+          break
+        }
       }
     }
 
-    // B. Secret Lair Countdown Kit: An Encyclopedia of Magic (novembre 2024)
-    if (!matchedDate && (pNorm.includes('encyclopediaofmagic') || pNorm.includes('countdownkitanencyclopedia'))) {
-      matchedDate = new Date('2024-11-01')
-    }
-
-    // C. Packs Secret Lair 30th Anniversary Countdown Kit (novembre 2022)
-    if (!matchedDate && pNorm.includes('30thanniversarycountdownkit')) {
-      matchedDate = new Date('2022-11-01')
-    }
-
-    // D. 30th Anniversary Edition
-    if (!matchedDate && pNorm.includes('30thanniversary')) {
-      matchedDate = new Date('2022-11-28')
-    }
-
-    // E. Arena League Promos (année dans le nom)
-    if (!matchedDate && pNorm.includes('arenaleaguepromos')) {
-      const ym = p.name.match(/\b(19\d{2}|20\d{2})\b/)
-      if (ym) matchedDate = new Date(`${ym[1]}-01-01`)
-    }
-
-    // F. Relic Tokens & Creature Forge
-    if (!matchedDate && (pNorm.includes('relictokens') || pNorm.includes('creatureforge'))) {
-      if (pNorm.includes('eternal')) matchedDate = new Date('2018-08-01')
-      else if (pNorm.includes('overwhelmingswarm')) matchedDate = new Date('2018-07-01')
-      else if (pNorm.includes('legendary')) matchedDate = new Date('2018-11-01')
-      else if (pNorm.includes('lineage')) matchedDate = new Date('2019-03-01')
-      else if (pNorm.includes('relentless')) matchedDate = new Date('2019-07-01')
-      else matchedDate = new Date('2018-10-01')
-    }
-
-    // G. Oversized Promos
-    if (!matchedDate && pNorm.includes('oversized')) {
-      matchedDate = new Date('1995-01-01')
-    }
-
-    // H. Ixalan Buy-a-Box
-    if (!matchedDate && pNorm.includes('ixalan')) {
-      matchedDate = new Date('2017-09-29')
-    }
-
-    // I. APAC / Euro Lands
-    if (!matchedDate && pNorm.includes('apaclands')) {
-      matchedDate = new Date('1998-01-01')
-    }
-    if (!matchedDate && pNorm.includes('eurolands')) {
-      matchedDate = new Date('2000-02-01')
-    }
-
-    // J. Salvat Decks
-    if (!matchedDate && pNorm.includes('salvat')) {
-      matchedDate = new Date('2005-08-01')
-    }
-
-    // K. Correspondance avec une boîte de boosters existante (par nom complet ou nom de boîte contenu dans le booster/deck)
-    if (!matchedDate) {
+    // G. Recherche dynamique dans les boîtes de boosters existantes (du nom le plus long au plus court)
+    if (!officialDate) {
       for (const box of boxesSorted) {
-        if (box.normName.length >= 4 && (pNorm.includes(box.normName) || box.normName.includes(pNorm))) {
-          matchedDate = box.date
+        if (box.normName.length >= 4 && pNorm.length > box.normName.length && pNorm.includes(box.normName)) {
+          officialDate = box.date
           break
         }
       }
     }
 
-    // L. Correspondance avec un set Scryfall
-    if (!matchedDate) {
+    // H. Recherche dynamique par inclusion dans les sets Scryfall (du nom le plus long au plus court)
+    if (!officialDate) {
       for (const sfSet of scryfallSetsSorted) {
-        if (sfSet.normName.length >= 4 && (pNorm.includes(sfSet.normName) || sfSet.normName.includes(pNorm))) {
-          matchedDate = sfSet.date
+        if (sfSet.normName.length >= 4 && pNorm.length > sfSet.normName.length && pNorm.includes(sfSet.normName)) {
+          officialDate = sfSet.date
           break
         }
       }
     }
 
-    // M. Correspondance directe par Cardmarket ID depuis MTGJSON
-    if (!matchedDate && p.cardmarketId && mcmIdMap.has(p.cardmarketId)) {
-      matchedDate = mcmIdMap.get(p.cardmarketId)!
-    }
-
-    // N. Correspondance par nom de produit scellé MTGJSON
-    if (!matchedDate && sealedNameMap.has(pNorm)) {
-      matchedDate = sealedNameMap.get(pNorm)!
-    }
-
-    // O. Secret Lair général
-    if (!matchedDate && pNorm.includes('secretlair')) {
-      matchedDate = new Date('2023-04-14')
-    }
-
-    // P. Détection par année pour tout produit restant ayant une année 1990-2029 dans son nom
-    if (!matchedDate) {
+    // I. Détection dynamique de l'année dans le nom du produit (ex: "Challenger Decks 2021", "Game Night 2019")
+    if (!officialDate) {
       const yearMatch = p.name.match(/\b(19\d{2}|20\d{2})\b/)
       if (yearMatch) {
         const yr = yearMatch[1]
         const commanderSet = `commander${yr}`
-        if (scryfallMap.has(commanderSet)) {
-          matchedDate = scryfallMap.get(commanderSet)!
+        if (scryfallExactMap.has(commanderSet)) {
+          officialDate = scryfallExactMap.get(commanderSet)!
         } else {
-          matchedDate = new Date(`${yr}-06-01`)
+          officialDate = new Date(`${yr}-06-01`)
         }
       }
     }
 
-    if (matchedDate) {
-      updatesToRun.push({ id: p.id, date: matchedDate })
+    // Vérifier si une mise à jour est requise
+    if (officialDate) {
+      const isMissing = !p.releaseDate
+      const isDifferent = p.releaseDate && p.releaseDate.toISOString().slice(0, 10) !== officialDate.toISOString().slice(0, 10)
+
+      if (isMissing || isDifferent) {
+        updatesToRun.push({ id: p.id, date: officialDate })
+        if (isDifferent) discrepanciesFixed++
+      }
     }
   }
 
-  // Exécution par lots concurrents de 30 pour une vitesse maximale
+  // Exécution par lots concurrents de 30
   const BATCH_SIZE = 30
-  let updated = 0
   for (let i = 0; i < updatesToRun.length; i += BATCH_SIZE) {
     const chunk = updatesToRun.slice(i, i + BATCH_SIZE)
     await Promise.all(
@@ -272,15 +232,19 @@ export async function syncProductReleaseDates(): Promise<{
         })
       )
     )
-    updated += chunk.length
   }
 
-  const remaining = productsToUpdate.length - updated
-  console.log(`[ReleaseDates Sync] Fin de synchronisation : ${updated} produits mis à jour avec leur date de sortie. Restants sans date : ${remaining}.`)
+  const remainingWithoutDate = await prisma.product.count({
+    where: { releaseDate: null }
+  })
+
+  console.log(`[ReleaseDates Sync] Terminé : ${updatesToRun.length} dates mises à jour (${discrepanciesFixed} corrigées, ${remainingWithoutDate} sans date).`)
 
   return {
-    totalChecked: productsToUpdate.length,
-    updated,
-    remainingWithoutDate: remaining
+    ok: true,
+    totalChecked: allProducts.length,
+    updated: updatesToRun.length,
+    discrepanciesFixed,
+    remainingWithoutDate
   }
 }

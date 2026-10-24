@@ -2,6 +2,7 @@
 type Row = {
   id: number
   name: string
+  category?: 'BOOSTER_BOX' | 'SINGLE_BOOSTER' | 'PRECON_DECK'
   type: string
   releaseDate: string | null
   standardLegalUntil?: string | null
@@ -26,6 +27,7 @@ const month = ref(new Date().toISOString().slice(0, 7))
 const rows = ref<{
   id: number
   name: string
+  category?: 'BOOSTER_BOX' | 'SINGLE_BOOSTER' | 'PRECON_DECK'
   type: string
   releaseDate: string
   standardLegalUntil: string
@@ -134,12 +136,20 @@ async function syncCardmarketDirectly() {
 }
 
 const TYPES = [
-  { v: 'ALL', l: 'Tous' },
+  { v: 'ALL', l: 'Tous types' },
   { v: 'DRAFT', l: 'Draft' },
   { v: 'SET', l: 'Set' },
   { v: 'PLAY', l: 'Play' },
   { v: 'COLLECTOR', l: 'Collector' },
   { v: 'OTHER', l: 'Autres' }
+]
+
+const categoryFilter = ref('ALL')
+const CATEGORIES = [
+  { v: 'ALL', l: 'Toutes catégories' },
+  { v: 'BOOSTER_BOX', l: '📦 Boîtes' },
+  { v: 'SINGLE_BOOSTER', l: '🃏 Boosters' },
+  { v: 'PRECON_DECK', l: '⚔️ Decks' }
 ]
 
 function notify(msg: string, error = false) {
@@ -170,6 +180,7 @@ async function load() {
     rows.value = list.map((r) => ({
       id: r.id,
       name: r.name,
+      category: r.category || 'BOOSTER_BOX',
       type: r.type,
       releaseDate: r.releaseDate || '',
       standardLegalUntil: r.standardLegalUntil || '',
@@ -353,10 +364,11 @@ const onlyAnomalies = ref(false)
 const filteredRows = computed(() => {
   const q = searchFilter.value.toLowerCase().trim()
   return rows.value.filter((r) => {
+    const matchCat = categoryFilter.value === 'ALL' || r.category === categoryFilter.value
     const matchType = typeFilter.value === 'ALL' || r.type === typeFilter.value
     const matchName = !q || r.name.toLowerCase().includes(q)
     const matchAnomaly = !onlyAnomalies.value || isAnomaly(r)
-    return matchType && matchName && matchAnomaly
+    return matchCat && matchType && matchName && matchAnomaly
   })
 })
 
@@ -557,6 +569,9 @@ useSeoMeta({
     <!-- Filtres & Actions grille -->
     <div class="toolbar" style="align-items:center;">
       <input id="month" v-model="month" type="month" class="input" title="Mois de saisie" />
+      <select v-model="categoryFilter" class="input" style="min-width:145px; font-weight:600;" title="Filtrer par catégorie">
+        <option v-for="c in CATEGORIES" :key="c.v" :value="c.v">{{ c.l }}</option>
+      </select>
       <input v-model="searchFilter" class="input" placeholder="Filtrer par nom..." style="min-width:180px;" />
       <div class="chips">
         <button
@@ -573,7 +588,7 @@ useSeoMeta({
           class="chip"
           :class="{ active: onlyAnomalies }"
           style="border-color: rgba(229, 96, 79, 0.5); color: #e5604f; display: inline-flex; align-items: center; gap: 4px;"
-          title="Afficher uniquement les boîtes dont la variation est supérieure à +100% ou inférieure à -50%"
+          title="Afficher uniquement les produits dont la variation est supérieure à +100% ou inférieure à -50%"
           @click="onlyAnomalies = !onlyAnomalies"
         >
           <span>⚠️ {{ anomaliesCount }} anomalie(s)</span>
@@ -630,6 +645,27 @@ useSeoMeta({
           <tr v-for="r in filteredRows" :key="r.id">
             <!-- Édition -->
             <td style="font-weight: 600; white-space: normal; word-break: break-word;" :title="r.name">
+              <span
+                v-if="r.category === 'SINGLE_BOOSTER'"
+                class="badge"
+                style="background: rgba(142, 68, 173, 0.2); color: #c39bd3; font-size: 0.62rem; padding: 1px 5px; margin-right: 6px; vertical-align: middle;"
+              >
+                Booster
+              </span>
+              <span
+                v-else-if="r.category === 'PRECON_DECK'"
+                class="badge"
+                style="background: rgba(41, 128, 185, 0.2); color: #85c1e9; font-size: 0.62rem; padding: 1px 5px; margin-right: 6px; vertical-align: middle;"
+              >
+                Deck
+              </span>
+              <span
+                v-else
+                class="badge"
+                style="background: rgba(91, 141, 239, 0.15); color: var(--accent); font-size: 0.62rem; padding: 1px 5px; margin-right: 6px; vertical-align: middle;"
+              >
+                Boîte
+              </span>
               {{ r.name }}
             </td>
 

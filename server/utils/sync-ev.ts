@@ -7,29 +7,10 @@ function normalizeName(str: string): string {
   return str
     .toLowerCase()
     .replace(/['’]/g, '')
-    .replace(/\b(booster box|draft booster box|play booster box|set booster box|collector booster box|edition|box)\b/gi, '')
+    .replace(/\b(universes beyond|commander legends|booster box|draft booster box|play booster box|set booster box|collector booster box|edition|box)\b/gi, '')
     .replace(/[^a-z0-9]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-}
-
-/**
- * Correspondances spécifiques entre noms MTG Stats et noms Dawnglare.
- */
-const SET_ALIASES: Record<string, string> = {
-  'modern masters 2015': 'modern masters 2015',
-  'modern masters 2017': 'modern masters 2017',
-  'modern masters': 'modern masters',
-  'double masters 2022': 'double masters 2022',
-  'double masters': 'double masters',
-  'conspiracy take the crown': 'conspiracy take the crown',
-  'conspiracy': 'conspiracy',
-  'commander legends battle for baldurs gate': 'battle for baldurs gate',
-  'battle for baldurs gate': 'battle for baldurs gate',
-  'adventures in the forgotten realms': 'forgotten realms',
-  'the lord of the rings tales of middle earth': 'tales of middle earth',
-  'march of the machine the aftermath': 'aftermath',
-  'universes beyond assassins creed': 'assassins creed'
 }
 
 /**
@@ -50,8 +31,7 @@ export async function syncExpectedValues(targetMonth?: string) {
       OR: [
         { releaseDate: { lt: new Date('2003-01-01') } },
         { category: { not: ProductCategory.BOOSTER_BOX } },
-        { type: BoosterType.COLLECTOR },
-        { name: { in: ['Alpha', 'Beta', 'Unlimited', 'Arabian Nights', 'Antiquities', 'Legends', 'The Dark', 'Fallen Empires'] } }
+        { type: BoosterType.COLLECTOR }
       ]
     },
     select: { id: true }
@@ -99,19 +79,8 @@ export async function syncExpectedValues(targetMonth?: string) {
   let matchedCount = 0
 
   for (const product of products) {
-    // Exclure formellement les sets vintage célèbres sans boîte standard moderne
-    const lowerName = product.name.trim().toLowerCase()
-    if (['alpha', 'beta', 'unlimited', 'arabian nights', 'antiquities', 'legends', 'the dark'].includes(lowerName)) {
-      continue
-    }
-
     const normP = normalizeName(product.name)
     let evUsd = evMap.get(normP)
-
-    // Alias explicite
-    if (evUsd === undefined && SET_ALIASES[normP]) {
-      evUsd = evMap.get(SET_ALIASES[normP])
-    }
 
     // Appariement strict par mots-clés
     if (evUsd === undefined) {
