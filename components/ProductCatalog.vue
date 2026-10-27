@@ -197,12 +197,25 @@ function sortBy(k: keyof Item) {
   else { sortKey.value = k; sortDir.value = -1 }
 }
 
+const availableTypes = computed(() => {
+  if (props.category === 'BOOSTER_BOX') {
+    return TYPES
+  }
+  return TYPES.filter((t) => t.v !== 'BUNDLE')
+})
+
+watch(() => props.category, (newCat) => {
+  if (newCat !== 'BOOSTER_BOX' && type.value === 'BUNDLE') {
+    type.value = 'ALL'
+  }
+})
+
 const selectedTypeLabel = computed(() => {
   if (props.category === 'PRECON_DECK') {
     const found = DECK_TYPES.find((t) => t.v === deckType.value)
     return found && found.v !== 'ALL' ? found.l : null
   }
-  const found = TYPES.find((t) => t.v === type.value)
+  const found = availableTypes.value.find((t) => t.v === type.value)
   return found && found.v !== 'ALL' ? found.l : null
 })
 
@@ -359,7 +372,7 @@ onMounted(() => {
 
     <!-- FILTRES POUR LES BOÎTES ET BOOSTERS -->
     <div v-else class="chips">
-      <button v-for="t in TYPES" :key="t.v" class="chip" :class="{ active: type === t.v }" @click="type = t.v">{{ t.l }}</button>
+      <button v-for="t in availableTypes" :key="t.v" class="chip" :class="{ active: type === t.v }" @click="type = t.v">{{ t.l }}</button>
       <button
         v-if="category === 'BOOSTER_BOX'"
         class="chip"
