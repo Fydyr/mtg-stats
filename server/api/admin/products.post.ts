@@ -5,16 +5,19 @@ type Body = {
   deckType?: 'COMMANDER' | 'CHALLENGER' | 'STARTER' | 'OTHER' | null
   releaseDate?: string | null
 }
-const TYPES = ['DRAFT', 'SET', 'PLAY', 'COLLECTOR', 'OTHER']
+const TYPES = ['DRAFT', 'SET', 'PLAY', 'COLLECTOR', 'BUNDLE', 'OTHER']
 const CATEGORIES = ['BOOSTER_BOX', 'SINGLE_BOOSTER', 'PRECON_DECK']
 const DECK_TYPES = ['COMMANDER', 'CHALLENGER', 'STARTER', 'OTHER']
 
 export default defineEventHandler(async (event) => {
   requireAdmin(event)
   const body = await readBody<Body>(event)
-  const name = body?.name?.trim()
+  let name = body?.name?.trim()
   if (!name) throw createError({ statusCode: 400, statusMessage: 'Nom requis' })
-  const type = TYPES.includes(body.type ?? '') ? (body.type as never) : 'DRAFT'
+  if (body.type === 'BUNDLE' && !/\b(?:bundle|fat\s*pack)\b/i.test(name)) {
+    name = `${name} Bundle`
+  }
+  const type = (body.type === 'BUNDLE' || body.type === 'OTHER') ? 'OTHER' : TYPES.includes(body.type ?? '') ? (body.type as never) : 'DRAFT'
   const category = CATEGORIES.includes(body.category ?? '') ? (body.category as never) : 'BOOSTER_BOX'
   const deckType = DECK_TYPES.includes(body.deckType ?? '') ? (body.deckType as never) : null
   const releaseDate = body.releaseDate ? new Date(body.releaseDate) : null

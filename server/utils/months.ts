@@ -21,8 +21,8 @@ export function cardmarketLink(
     return url
   }
 
-  // 2. Si c'est un deck préconstruit, ouvrir la recherche Cardmarket
-  if (category === 'PRECON_DECK') {
+  // 2. Si c'est un deck préconstruit ou un bundle, ouvrir la recherche Cardmarket
+  if (category === 'PRECON_DECK' || type === 'BUNDLE' || /\b(?:bundle|fat\s*pack)\b/i.test(name)) {
     return `https://www.cardmarket.com/fr/Magic/Products/Search?searchString=${encodeURIComponent(name).replace(/%20/g, '+')}`
   }
 

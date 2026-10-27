@@ -10,8 +10,8 @@ const siteUrl = computed(() => reqUrl.origin || (config.public.siteUrl as string
 useSeoMeta({
   title: 'MTG Stats : prix des boîtes de boosters Magic',
   ogTitle: 'MTG Stats : prix des boîtes de boosters Magic',
-  description: 'Suivi mensuel des prix des boîtes de boosters scellées Magic: The Gathering (Draft, Set, Play, Collector) sur le marché européen.',
-  ogDescription: 'Suivi mensuel des prix des boîtes de boosters scellées Magic: The Gathering (Draft, Set, Play, Collector) sur le marché européen.',
+  description: 'Suivi mensuel des prix des boîtes de boosters scellées et bundles Magic: The Gathering (Draft, Set, Play, Collector, Bundles) sur le marché européen.',
+  ogDescription: 'Suivi mensuel des prix des boîtes de boosters scellées et bundles Magic: The Gathering (Draft, Set, Play, Collector, Bundles) sur le marché européen.',
   ogUrl: () => `${siteUrl.value}/boxes`,
   ogType: 'website'
 })

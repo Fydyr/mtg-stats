@@ -53,7 +53,9 @@ export function parseBoosterBoxName(rawName: string): { editionName: string; typ
   let name = rawName.trim()
   let type: BoosterType = BoosterType.DRAFT
 
-  if (/\bcollector(?:\s+booster)?(?:\s+box)?\b/i.test(name)) {
+  if (/\b(?:bundle|fat\s*pack)\b/i.test(name)) {
+    type = BoosterType.OTHER
+  } else if (/\bcollector(?:\s+booster)?(?:\s+box)?\b/i.test(name)) {
     type = BoosterType.COLLECTOR
     name = name.replace(/\bcollector(?:\s+booster)?(?:\s+box)?\b/gi, '').trim()
   } else if (/\bplay(?:\s+booster)?(?:\s+box)?\b/i.test(name)) {
@@ -164,7 +166,10 @@ export default defineEventHandler(async (event) => {
             catId === '3' ||
             catName.includes('booster box') ||
             catName.includes('display') ||
-            /booster\s*box/i.test(rawName)
+            catName.includes('bundle') ||
+            catName.includes('fat pack') ||
+            /booster\s*box/i.test(rawName) ||
+            /\b(?:bundle|fat\s*pack)\b/i.test(rawName)
 
           if (!isBoosterBox) continue
 

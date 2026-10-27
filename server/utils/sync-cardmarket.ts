@@ -15,7 +15,9 @@ export function parseBoosterBoxName(rawName: string): { editionName: string; typ
   let name = rawName.trim()
   let type: BoosterType = BoosterType.DRAFT
 
-  if (/\bcollector(?:\s+booster)?(?:\s+box)?\b/i.test(name)) {
+  if (/\b(?:bundle|fat\s*pack)\b/i.test(name)) {
+    type = BoosterType.OTHER
+  } else if (/\bcollector(?:\s+booster)?(?:\s+box)?\b/i.test(name)) {
     type = BoosterType.COLLECTOR
     name = name.replace(/\bcollector(?:\s+booster)?(?:\s+box)?\b/gi, '').trim()
   } else if (/\bplay(?:\s+booster)?(?:\s+box)?\b/i.test(name)) {
@@ -159,7 +161,13 @@ export async function syncCardmarketData(
     if (!raw) continue
     const lower = raw.toLowerCase()
 
-    if (p.idCategory === 7 && !JUNK_KEYWORDS.some((j) => lower.includes(j))) {
+    const isBundleOrFatPack =
+      /\b(?:bundle|fat\s*pack|fatpack)\b/i.test(raw) ||
+      (Boolean(p.categoryName) && /bundle|fat\s*pack/i.test(p.categoryName!))
+
+    if (isBundleOrFatPack && !JUNK_KEYWORDS.some((j) => lower.includes(j))) {
+      itemsToSync.push({ idProduct: p.idProduct, name: raw, category: 'BOOSTER_BOX', type: BoosterType.OTHER })
+    } else if (p.idCategory === 7 && !JUNK_KEYWORDS.some((j) => lower.includes(j))) {
       const { editionName, type } = parseBoosterBoxName(raw)
       itemsToSync.push({ idProduct: p.idProduct, name: editionName, category: 'BOOSTER_BOX', type })
     } else if (p.idCategory === 2 && !JUNK_KEYWORDS.some((j) => lower.includes(j))) {

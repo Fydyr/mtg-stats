@@ -141,8 +141,13 @@ const TYPES = [
   { v: 'SET', l: 'Set' },
   { v: 'PLAY', l: 'Play' },
   { v: 'COLLECTOR', l: 'Collector' },
+  { v: 'BUNDLE', l: 'Bundle' },
   { v: 'OTHER', l: 'Autres' }
 ]
+
+function isBundleItem(r: { type?: string; name?: string }) {
+  return r.type === 'BUNDLE' || /\b(?:bundle|fat\s*pack)\b/i.test(r.name || '')
+}
 
 const categoryFilter = ref('ALL')
 const CATEGORIES = [
@@ -365,7 +370,14 @@ const filteredRows = computed(() => {
   const q = searchFilter.value.toLowerCase().trim()
   return rows.value.filter((r) => {
     const matchCat = categoryFilter.value === 'ALL' || r.category === categoryFilter.value
-    const matchType = typeFilter.value === 'ALL' || r.type === typeFilter.value
+    let matchType = false
+    if (typeFilter.value === 'ALL') {
+      matchType = true
+    } else if (typeFilter.value === 'BUNDLE') {
+      matchType = isBundleItem(r)
+    } else {
+      matchType = !isBundleItem(r) && r.type === typeFilter.value
+    }
     const matchName = !q || r.name.toLowerCase().includes(q)
     const matchAnomaly = !onlyAnomalies.value || isAnomaly(r)
     return matchCat && matchType && matchName && matchAnomaly
@@ -427,7 +439,7 @@ useSeoMeta({
         </div>
       </div>
       <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 14px; line-height: 1.5;">
-        Cardmarket publie quotidiennement ses données sur son CDN public Amazon S3.<br />
+        Cardmarket publie quotidiennement ses données sur son CDN public Amazon S3 (Boîtes, Bundles, Fat Packs, Boosters et Decks).<br />
         Vous pouvez <strong>lancer la synchronisation directement en 1 clic</strong> (notre serveur télécharge et applique les données sans que vous n'ayez rien à manipuler) ou envoyer vos propres fichiers.
       </p>
 
@@ -518,6 +530,7 @@ useSeoMeta({
               <option value="SET">SET</option>
               <option value="PLAY">PLAY</option>
               <option value="COLLECTOR">COLLECTOR</option>
+              <option value="BUNDLE">BUNDLE</option>
               <option value="OTHER">AUTRES</option>
             </select>
             <input v-model="newProduct.releaseDate" type="date" class="input" style="flex:1; min-width:130px;" title="Date de sortie" />
@@ -660,6 +673,13 @@ useSeoMeta({
                 Deck
               </span>
               <span
+                v-else-if="isBundleItem(r)"
+                class="badge badge-bundle"
+                style="font-size: 0.62rem; padding: 1px 5px; margin-right: 6px; vertical-align: middle;"
+              >
+                Bundle
+              </span>
+              <span
                 v-else
                 class="badge"
                 style="background: rgba(91, 141, 239, 0.15); color: var(--accent); font-size: 0.62rem; padding: 1px 5px; margin-right: 6px; vertical-align: middle;"
@@ -676,6 +696,7 @@ useSeoMeta({
                 <option value="SET">Set</option>
                 <option value="PLAY">Play</option>
                 <option value="COLLECTOR">Collector</option>
+                <option value="BUNDLE">Bundle</option>
                 <option value="OTHER">Autres</option>
               </select>
             </td>

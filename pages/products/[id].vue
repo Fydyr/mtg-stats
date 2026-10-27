@@ -67,7 +67,7 @@ const chartData = computed(() => ({
   labels: filteredHistory.value.map((h) => h.month),
   datasets: [
     {
-      label: data.value?.category === 'PRECON_DECK' ? 'Prix deck' : data.value?.category === 'SINGLE_BOOSTER' ? 'Prix booster' : 'Prix boîte',
+      label: data.value?.category === 'PRECON_DECK' ? 'Prix deck' : data.value?.category === 'SINGLE_BOOSTER' ? 'Prix booster' : isBundle.value ? 'Prix bundle' : 'Prix boîte',
       data: filteredHistory.value.map((h) => h.price),
       borderColor: '#5b8def',
       backgroundColor: 'rgba(91, 141, 239, 0.12)',
@@ -134,6 +134,7 @@ const options = {
 }
 
 const isVintage = computed(() => data.value?.releaseDate ? new Date(data.value.releaseDate).getFullYear() < 2003 : false)
+const isBundle = computed(() => data.value?.type === 'BUNDLE' || /\b(?:bundle|fat\s*pack)\b/i.test(data.value?.name ?? ''))
 const isBox = computed(() => data.value?.category === 'BOOSTER_BOX' && (data.value?.type === 'DRAFT' || data.value?.type === 'PLAY' || data.value?.type === 'SET'))
 
 const first = computed(() => filteredHistory.value[0]?.price)
@@ -230,6 +231,9 @@ useSeoMeta({
       <p>
         <span v-if="data?.category === 'PRECON_DECK'" class="badge" :class="`badge-${(data?.deckType || 'other').toLowerCase()}`">
           {{ data?.deckType || 'DECK' }}
+        </span>
+        <span v-else-if="isBundle" class="badge badge-bundle">
+          Bundle
         </span>
         <span v-else class="badge" :class="`badge-${data?.type.toLowerCase()}`">
           {{ data?.category === 'SINGLE_BOOSTER' ? `Booster ${data?.type}` : `Boîte ${data?.type}` }}

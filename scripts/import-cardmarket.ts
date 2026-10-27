@@ -138,7 +138,13 @@ async function syncFromS3(month: string, priceFieldChoice: string) {
     if (!raw) continue
     const lower = raw.toLowerCase()
 
-    if (p.idCategory === 7 && !JUNK_KEYWORDS.some((j) => lower.includes(j))) {
+    const isBundleOrFatPack =
+      /\b(?:bundle|fat\s*pack|fatpack)\b/i.test(raw) ||
+      (Boolean((p as any).categoryName) && /bundle|fat\s*pack/i.test((p as any).categoryName!))
+
+    if (isBundleOrFatPack && !JUNK_KEYWORDS.some((j) => lower.includes(j))) {
+      itemsToSync.push({ idProduct: p.idProduct, name: raw, category: 'BOOSTER_BOX', type: BoosterType.OTHER })
+    } else if (p.idCategory === 7 && !JUNK_KEYWORDS.some((j) => lower.includes(j))) {
       const { editionName, type } = parseBoosterBoxName(raw)
       itemsToSync.push({ idProduct: p.idProduct, name: editionName, category: 'BOOSTER_BOX', type })
     } else if (p.idCategory === 2 && !JUNK_KEYWORDS.some((j) => lower.includes(j))) {

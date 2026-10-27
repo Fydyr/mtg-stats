@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
         where: { id: productId },
         data: {
           ...(p.cardmarketUrl !== undefined ? { cardmarketUrl: url || null } : {}),
-          ...(p.type && p.type in BoosterType ? { type: p.type } : {}),
+          ...(p.type && (p.type as any) === 'BUNDLE' ? { type: BoosterType.OTHER } : p.type && p.type in BoosterType ? { type: p.type } : {}),
           ...(p.releaseDate !== undefined ? { releaseDate: rDate } : {}),
           ...(p.standardLegalUntil !== undefined ? { standardLegalUntil: sDate } : {}),
           ...(p.isOutOfPrint !== undefined ? { isOutOfPrint: p.isOutOfPrint } : {}),

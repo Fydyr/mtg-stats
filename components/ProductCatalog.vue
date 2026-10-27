@@ -53,8 +53,13 @@ const TYPES = [
   { v: 'SET', l: 'Set' },
   { v: 'PLAY', l: 'Play' },
   { v: 'COLLECTOR', l: 'Collector' },
+  { v: 'BUNDLE', l: 'Bundle' },
   { v: 'OTHER', l: 'Autres' }
 ]
+
+function isBundleItem(item: { type?: string; name?: string }): boolean {
+  return item.type === 'BUNDLE' || /\b(?:bundle|fat\s*pack)\b/i.test(item.name || '')
+}
 
 const DECK_TYPES = [
   { v: 'ALL', l: 'Tous les decks' },
@@ -158,7 +163,12 @@ const rows = computed(() => {
     if (props.category === 'PRECON_DECK') {
       if (deckType.value !== 'ALL' && (i.deckType || 'OTHER') !== deckType.value) return false
     } else {
-      if (type.value !== 'ALL' && i.type !== type.value) return false
+      if (type.value === 'BUNDLE') {
+        if (!isBundleItem(i)) return false
+      } else if (type.value !== 'ALL') {
+        if (isBundleItem(i)) return false
+        if (i.type !== type.value) return false
+      }
       if (onlyProfitable.value && (i.evRatio == null || i.evRatio < 100)) return false
     }
     return true
@@ -203,7 +213,9 @@ const categoryItems = computed(() => {
     if (props.category === 'PRECON_DECK') {
       return deckType.value === 'ALL' || (i.deckType || 'OTHER') === deckType.value
     } else {
-      return type.value === 'ALL' || i.type === type.value
+      if (type.value === 'BUNDLE') return isBundleItem(i)
+      if (type.value !== 'ALL') return !isBundleItem(i) && i.type === type.value
+      return true
     }
   })
 })
@@ -280,7 +292,7 @@ onMounted(() => {
           ? 'Suivi de la cote des decks préconstruits Magic: The Gathering (Commander, Challenger, Starter sets).'
           : category === 'SINGLE_BOOSTER'
           ? 'Suivi des prix des boosters à l\'unité Magic: The Gathering (Draft, Set, Play, Collector).'
-          : 'Suivi mensuel des boîtes de boosters scellées Magic: The Gathering (marché européen).'
+          : 'Suivi mensuel des boîtes de boosters scellées et bundles Magic: The Gathering (marché européen).'
       }}
       <span v-if="data?.month"> Relevé de {{ monthLabel(data.month) }}.</span>
     </p>
@@ -517,6 +529,9 @@ onMounted(() => {
             <span v-if="r.category === 'PRECON_DECK'" class="badge" :class="`badge-${(r.deckType || 'other').toLowerCase()}`">
               {{ r.deckType || 'DECK' }}
             </span>
+            <span v-else-if="isBundleItem(r)" class="badge badge-bundle">
+              BUNDLE
+            </span>
             <span v-else class="badge" :class="`badge-${r.type.toLowerCase()}`">{{ r.type }}</span>
           </td>
           <td class="muted">{{ year(r.releaseDate) }}</td>
@@ -599,6 +614,9 @@ onMounted(() => {
             <span v-if="r.category === 'PRECON_DECK'" class="badge" :class="`badge-${(r.deckType || 'other').toLowerCase()}`">
               {{ r.deckType || 'DECK' }}
             </span>
+            <span v-else-if="isBundleItem(r)" class="badge badge-bundle">
+              BUNDLE
+            </span>
             <span v-else class="badge" :class="`badge-${r.type.toLowerCase()}`">{{ r.type }}</span>
           </div>
           <span class="muted" style="font-size:0.75rem;">{{ year(r.releaseDate) }}</span>
@@ -609,7 +627,7 @@ onMounted(() => {
           <div class="product-card-price-row">
             <div>
               <span style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; display:block;">
-                {{ r.category === 'PRECON_DECK' ? 'Prix deck' : r.category === 'SINGLE_BOOSTER' ? 'Prix booster' : 'Prix boîte' }}
+                {{ r.category === 'PRECON_DECK' ? 'Prix deck' : r.category === 'SINGLE_BOOSTER' ? 'Prix booster' : isBundleItem(r) ? 'Prix bundle' : 'Prix boîte' }}
               </span>
               <span class="product-card-price">{{ eur(r.price) }}</span>
             </div>

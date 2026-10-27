@@ -286,9 +286,9 @@ useSeoMeta({
         <NuxtLink to="/boxes" class="portal-card">
           <div class="portal-icon">📦</div>
           <div class="portal-badge">{{ counts.BOOSTER_BOX }} boîtes</div>
-          <h3>Boîtes de boosters</h3>
+          <h3>Boîtes &amp; Bundles</h3>
           <p>
-            Historique complet des boîtes de boosters scellées (Draft, Set, Play, Collector). Suivi des prix, EV et rentabilité à l'ouverture.
+            Historique complet des boîtes de boosters scellées et bundles (Draft, Set, Play, Collector, Bundles). Suivi des prix, EV et rentabilité à l'ouverture.
           </p>
           <div class="portal-footer">
             <span class="portal-action">Consulter les boîtes →</span>
