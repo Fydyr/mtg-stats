@@ -316,11 +316,11 @@ useSeoMeta({
         class="chase-card-item"
       >
         <a
-          :href="card.cardmarketUrl || card.scryfallUrl || '#'"
+          :href="card.scryfallUrl || card.cardmarketUrl || '#'"
           target="_blank"
           rel="noopener noreferrer"
           class="chase-card-img-link"
-          :title="`Voir ${card.name} sur Cardmarket`"
+          :title="`Voir ${card.name} sur Scryfall`"
         >
           <img
             v-if="card.imageUrl"
@@ -332,7 +332,7 @@ useSeoMeta({
         </a>
         <div class="chase-card-info">
           <a
-            :href="card.cardmarketUrl || card.scryfallUrl || '#'"
+            :href="card.scryfallUrl || card.cardmarketUrl || '#'"
             target="_blank"
             rel="noopener noreferrer"
             class="chase-card-name"
