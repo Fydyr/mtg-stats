@@ -32,6 +32,22 @@ const { data } = await useFetch<{
   topGainers: MarketItem[]
   topLosers: MarketItem[]
   topEv: MarketItem[]
+  rotationTimeline?: {
+    key: 'ROTATING_SOON' | 'ACTIVE_STANDARD' | 'LONG_TERM'
+    label: string
+    sub: string
+    horizon: string
+    items: {
+      id: number
+      name: string
+      type: string
+      releaseDate: string | null
+      legalUntil: string
+      price: number
+      var1m: number | null
+      evRatio: number | null
+    }[]
+  }[]
 }>('/api/market/stats')
 
 const { getIcon } = useSetIcons()
@@ -242,4 +258,160 @@ useSeoMeta({
       </table>
     </div>
   </div>
+
+  <!-- CHRONOLOGIE & RADAR DE ROTATION STANDARD -->
+  <section v-if="data?.rotationTimeline?.length" class="card" style="margin-top: 28px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 18px;">
+      <div>
+        <h3 style="margin: 0 0 4px 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span class="icon-box" style="width: 30px; height: 30px; border-radius: 9px;">
+            <Papicon name="Calendar" :size="16" />
+          </span>
+          <span>Chronologie & Radar de Rotation Standard</span>
+        </h3>
+        <p class="muted" style="margin: 0; font-size: 0.85rem;">
+          Suivez le cycle de vie des boîtes légales en Standard et repérez les extensions proches de leur sortie du format.
+        </p>
+      </div>
+      <NuxtLink to="/boxes" class="btn ghost" style="font-size: 0.8rem; padding: 6px 12px;">
+        <span>Filtrer par ère dans le catalogue</span>
+        <Papicon name="ArrowRight" :size="14" />
+      </NuxtLink>
+    </div>
+
+    <div class="rotation-grid">
+      <div
+        v-for="group in data.rotationTimeline"
+        :key="group.key"
+        class="rotation-column"
+        :class="`rot-${group.key.toLowerCase()}`"
+      >
+        <div class="rotation-col-header">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span class="rotation-col-title">{{ group.label }}</span>
+            <span class="badge rotation-horizon-badge">Horizon {{ group.horizon }}</span>
+          </div>
+          <p class="muted" style="margin: 0; font-size: 0.76rem; line-height: 1.4;">{{ group.sub }}</p>
+        </div>
+
+        <div class="rotation-items-list">
+          <NuxtLink
+            v-for="it in group.items"
+            :key="it.id"
+            :to="`/products/${it.id}`"
+            class="rotation-item-row"
+          >
+            <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+              <img
+                v-if="getIcon(it.name)?.icon"
+                :src="getIcon(it.name)!.icon"
+                :alt="getIcon(it.name)!.code"
+                class="set-icon"
+              />
+              <div style="min-width: 0; flex: 1;">
+                <div class="rotation-item-name" :title="it.name">{{ it.name }}</div>
+                <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+                  <span class="badge" :class="`badge-${it.type.toLowerCase()}`" style="font-size: 0.6rem; padding: 1px 5px;">
+                    {{ it.type }}
+                  </span>
+                  <span v-if="it.releaseDate" class="muted" style="font-size: 0.7rem;">
+                    {{ new Date(it.releaseDate).getFullYear() }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div style="text-align: right; flex-shrink: 0;">
+              <div style="font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 0.95rem;">
+                {{ eur(it.price) }}
+              </div>
+              <span
+                v-if="it.var1m != null"
+                class="tag-var"
+                :class="cls(it.var1m)"
+                style="font-size: 0.68rem; padding: 1px 5px;"
+              >
+                {{ pct(it.var1m) }}
+              </span>
+            </div>
+          </NuxtLink>
+        </div>
+      </div>
+    </div>
+  </section>
 </template>
+
+<style scoped>
+.rotation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.rotation-column {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rotation-column.rot-rotating_soon {
+  border-top: 3px solid #f59e0b;
+}
+
+.rotation-column.rot-active_standard {
+  border-top: 3px solid #6390f0;
+}
+
+.rotation-column.rot-long_term {
+  border-top: 3px solid #34d399;
+}
+
+.rotation-col-title {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.rotation-horizon-badge {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-size: 0.68rem;
+}
+
+.rotation-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rotation-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid transparent;
+  color: var(--text);
+  text-decoration: none;
+  transition: all 0.16s ease;
+}
+
+.rotation-item-row:hover {
+  border-color: rgba(99, 144, 240, 0.4);
+  background: rgba(99, 144, 240, 0.08);
+  transform: translateX(2px);
+}
+
+.rotation-item-name {
+  font-size: 0.83rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+</style>

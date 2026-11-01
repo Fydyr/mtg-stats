@@ -64,6 +64,8 @@ export default defineEventHandler(async () => {
       type: p.type,
       deckType: (p as any).deckType || null,
       releaseDate: p.releaseDate,
+      standardLegalUntil: p.standardLegalUntil ? p.standardLegalUntil.toISOString().slice(0, 10) : null,
+      imageUrl: p.imageUrl || null,
       cardmarket: cardmarketLink(p.name, p.type, p.cardmarketUrl, cat),
       price: current,
       ev: currentEv,
@@ -107,6 +109,106 @@ export default defineEventHandler(async () => {
   const topLosers = [...withVar1m].sort((a, b) => a.var1m! - b.var1m!).slice(0, 10)
   const topEv = [...items.filter((i) => i.evRatio != null)].sort((a, b) => b.evRatio! - a.evRatio!).slice(0, 10)
 
+  // 4. Chronologie de Rotation Standard
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const cutoffYear = currentYear - 3
+
+  // Liste stricte des extensions non-Standard (formats Éternels, Modern, Commander, Draft suppl., Universes Beyond hors Standard)
+  const nonStandardRegex = /\b(?:mystery|cluedo|clue\s+edition|masters|horizons|remastered|commander|jumpstart|secret\s+lair|unfinity|unsanctioned|unstable|unhinged|unglued|universes\s+beyond|fallout|warhammer|doctor\s+who|assassin|lord\s+of\s+the\s+rings|tales\s+of\s+middle|jurassic|transformers|modern\s+event|conspiracy|battlebond|planechase|archenemy|game\s+night|explorers\s+of\s+ixalan|anthology|from\s+the\s+vault|spellbook|starter|challenger|theme\s+booster|value\s+booster|collector'?s\s+edition|world\s+championship|chronicles|renaissance|time\s+spiral)\b/i
+
+  // Liste des extensions Premier officiellement légales en Standard (2022-2026+)
+  const standardPremierRegex = /\b(?:kamigawa|new\s+capenna|dominaria\s+united|brothers'?\s+war|phyrexia|all\s+will\s+be\s+one|march\s+of\s+the\s+machine|wilds\s+of\s+eldraine|lost\s+caverns\s+of\s+ixalan|karlov\s+manor|thunder\s+junction|bloomburrow|duskmourn|foundations|aetherdrift|tarkir|dragonstorm|edge\s+of\s+eternities|final\s+fantasy|spider-?man|avatar|lorwyn\s+eclipsed|secrets\s+of\s+strixhaven|reality\s+fracture)\b/i
+
+  const rotationGroups: {
+    key: 'ROTATING_SOON' | 'ACTIVE_STANDARD' | 'LONG_TERM'
+    label: string
+    sub: string
+    horizon: string
+    items: {
+      id: number
+      name: string
+      type: string
+      releaseDate: string | null
+      legalUntil: string
+      price: number
+      var1m: number | null
+      evRatio: number | null
+    }[]
+  }[] = [
+    {
+      key: 'ROTATING_SOON',
+      label: 'Rotation imminente (< 12 mois)',
+      sub: 'Extensions en dernière année de Standard : transition fréquente vers une prime de rareté scellée.',
+      horizon: `${currentYear + 1}`,
+      items: []
+    },
+    {
+      key: 'ACTIVE_STANDARD',
+      label: 'Standard Cœur (1 à 2 ans restants)',
+      sub: 'Extensions actuellement au cœur du métagame compétitif et fortement ouvertes.',
+      horizon: `${currentYear + 2} – ${currentYear + 3}`,
+      items: []
+    },
+    {
+      key: 'LONG_TERM',
+      label: 'Piliers Long Terme (Foundations & 2029+)',
+      sub: 'Extensions à légalité prolongée conçues pour rester la base du format.',
+      horizon: '2029+',
+      items: []
+    }
+  ]
+
+  const seenSetType = new Set<string>()
+  for (const item of items) {
+    if (!item.releaseDate && !item.standardLegalUntil) continue
+    if (nonStandardRegex.test(item.name)) continue
+    if (!item.standardLegalUntil && !standardPremierRegex.test(item.name)) continue
+    if (item.type === 'BUNDLE' || /\b(?:bundle|fat\s*pack)\b/i.test(item.name)) continue
+
+    const relDate = item.releaseDate ? new Date(item.releaseDate) : null
+    const relYear = relDate ? relDate.getFullYear() : currentYear
+
+    let legalUntilDate: Date
+    if (item.standardLegalUntil) {
+      legalUntilDate = new Date(item.standardLegalUntil)
+    } else if (/\bfoundations\b/i.test(item.name)) {
+      legalUntilDate = new Date('2029-12-31')
+    } else {
+      legalUntilDate = new Date(relYear + 3, 8, 1)
+    }
+
+    if (legalUntilDate < now || (!item.standardLegalUntil && relYear < cutoffYear)) continue
+
+    const dedupKey = `${item.name.toLowerCase()}|${item.type}`
+    if (seenSetType.has(dedupKey)) continue
+    seenSetType.add(dedupKey)
+
+    const monthsLeft = (legalUntilDate.getFullYear() - now.getFullYear()) * 12 + (legalUntilDate.getMonth() - now.getMonth())
+    const entry = {
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      releaseDate: item.releaseDate ? new Date(item.releaseDate).toISOString().slice(0, 10) : null,
+      legalUntil: legalUntilDate.toISOString().slice(0, 10),
+      price: item.price!,
+      var1m: item.var1m,
+      evRatio: item.evRatio
+    }
+
+    if (legalUntilDate.getFullYear() >= 2029 || /\bfoundations\b/i.test(item.name)) {
+      rotationGroups[2].items.push(entry)
+    } else if (monthsLeft <= 14 || relYear <= cutoffYear + 1) {
+      rotationGroups[0].items.push(entry)
+    } else {
+      rotationGroups[1].items.push(entry)
+    }
+  }
+
+  for (const g of rotationGroups) {
+    g.items = g.items.slice(0, 8)
+  }
+
   return {
     month,
     marketTrend: {
@@ -119,6 +221,7 @@ export default defineEventHandler(async () => {
     byType,
     topGainers,
     topLosers,
-    topEv
+    topEv,
+    rotationTimeline: rotationGroups.filter((g) => g.items.length > 0)
   }
 })

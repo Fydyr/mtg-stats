@@ -92,17 +92,25 @@ const PRICE_RANGES = [
 function matchesEra(item: Item, eraVal: string): boolean {
   if (eraVal === 'ALL') return true
   const lowerName = item.name.toLowerCase()
-  const isMasters = lowerName.includes('masters') || lowerName.includes('horizons') || lowerName.includes('remastered')
+  const isMasters =
+    lowerName.includes('masters') ||
+    lowerName.includes('horizons') ||
+    lowerName.includes('remastered') ||
+    /\b(?:mystery|conspiracy|battlebond|time\s+spiral)\b/i.test(item.name)
   if (eraVal === 'MASTERS') return isMasters
+
+  const isSupplementalNonStandard =
+    isMasters ||
+    /\b(?:cluedo|clue\s+edition|commander|jumpstart|secret\s+lair|unfinity|unsanctioned|unstable|unhinged|unglued|fallout|warhammer|doctor\s+who|assassin|lord\s+of\s+the\s+rings|tales\s+of\s+middle|planechase|archenemy|game\s+night|explorers\s+of\s+ixalan|anthology|from\s+the\s+vault|spellbook)\b/i.test(item.name)
 
   // Détermination de la légalité Standard :
   // 1. Si standardLegalUntil est renseigné (ex: configuré dans l'admin pour Foundations jusqu'en 2029)
-  // 2. Sinon, règle par défaut : sorties des 3 dernières années, hors Masters
+  // 2. Sinon, règle par défaut : sorties des 3 dernières années, hors sets supplémentaires/Modern/Éternels
   const isCurrentlyStandard = item.standardLegalUntil
     ? new Date() <= new Date(item.standardLegalUntil)
     : !item.releaseDate
-      ? true
-      : (new Date(item.releaseDate).getFullYear() >= standardCutoffYear && !isMasters)
+      ? false
+      : (new Date(item.releaseDate).getFullYear() >= standardCutoffYear && !isSupplementalNonStandard)
 
   if (eraVal === 'STANDARD') return isCurrentlyStandard
 
