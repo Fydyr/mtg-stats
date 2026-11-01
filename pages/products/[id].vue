@@ -12,6 +12,16 @@ const { data, error } = await useFetch<{
   releaseDate: string | null; standardLegalUntil?: string | null; stock?: number | null; cardmarket: string
   imageUrl?: string | null
   unitComparison?: { id: number; name: string; category: string; type: string; price: number } | null
+  relatedProducts?: {
+    id: number
+    name: string
+    category: string
+    type: string
+    deckType: string | null
+    imageUrl: string | null
+    price: number | null
+    var1m: number | null
+  }[]
   history: { month: string; price: number; ev: number | null }[]
 }>(`/api/products/${route.params.id}`)
 
@@ -308,6 +318,13 @@ const simulatedTotal = computed(() => {
 const simulatedBulkFloor = computed(() => {
   if (data.value?.category !== 'BOOSTER_BOX' || !lastEv.value || !simulatedPullIds.value.length) return 0
   return Math.round(lastEv.value * 0.35 * 100) / 100
+})
+
+const relatedProducts = computed(() => data.value?.relatedProducts ?? [])
+const compareSetIdsUrl = computed(() => {
+  if (!data.value?.id || !relatedProducts.value.length) return null
+  const ids = [data.value.id, ...relatedProducts.value.slice(0, 4).map((p) => p.id)]
+  return `/compare?ids=${ids.join(',')}`
 })
 
 const reqUrl = useRequestURL()
@@ -732,6 +749,74 @@ useSeoMeta({
       </div>
     </div>
   </section>
+
+  <!-- TOUTES LES VERSIONS DE CETTE EXTENSION -->
+  <section v-if="relatedProducts.length" class="card" style="margin-top: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+      <div>
+        <h3 style="margin: 0 0 4px 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span class="icon-box" style="width: 30px; height: 30px; border-radius: 9px;">
+            <Papicon name="Archive" :size="16" />
+          </span>
+          <span>Toutes les versions de cette extension</span>
+          <span class="badge" style="background: rgba(99, 144, 240, 0.14); color: #8ab4ff;">
+            {{ relatedProducts.length }} autre{{ relatedProducts.length > 1 ? 's' : '' }} produit{{ relatedProducts.length > 1 ? 's' : '' }}
+          </span>
+        </h3>
+        <p class="muted" style="margin: 0; font-size: 0.85rem;">
+          Boîtes, bundles, boosters à l'unité et decks préconstruits disponibles pour la même édition.
+        </p>
+      </div>
+      <NuxtLink
+        v-if="compareSetIdsUrl"
+        :to="compareSetIdsUrl"
+        class="btn ghost"
+        style="font-size: 0.8rem; padding: 7px 13px;"
+      >
+        <Papicon name="Pillar" :size="14" />
+        <span>Comparer toute l'extension</span>
+      </NuxtLink>
+    </div>
+
+    <div class="related-products-grid">
+      <NuxtLink
+        v-for="rel in relatedProducts"
+        :key="rel.id"
+        :to="`/products/${rel.id}`"
+        class="related-product-card"
+      >
+        <div class="related-product-thumb">
+          <img v-if="rel.imageUrl" :src="rel.imageUrl" :alt="rel.name" loading="lazy" />
+          <Papicon v-else name="Archive" :size="20" :opacity="0.45" />
+        </div>
+        <div class="related-product-body">
+          <div class="related-product-title" :title="rel.name">{{ rel.name }}</div>
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 3px;">
+            <span v-if="rel.category === 'PRECON_DECK'" class="badge" :class="`badge-${(rel.deckType || 'other').toLowerCase()}`" style="font-size: 0.62rem; padding: 1px 6px;">
+              Deck {{ rel.deckType || '' }}
+            </span>
+            <span v-else-if="rel.type === 'BUNDLE' || /\b(?:bundle|fat\s*pack)\b/i.test(rel.name)" class="badge badge-bundle" style="font-size: 0.62rem; padding: 1px 6px;">
+              Bundle
+            </span>
+            <span v-else class="badge" :class="`badge-${rel.type.toLowerCase()}`" style="font-size: 0.62rem; padding: 1px 6px;">
+              {{ rel.category === 'SINGLE_BOOSTER' ? `Booster ${rel.type}` : `Boîte ${rel.type}` }}
+            </span>
+          </div>
+        </div>
+        <div class="related-product-right">
+          <div class="related-product-price">{{ rel.price != null ? `${rel.price} €` : '-' }}</div>
+          <span
+            v-if="rel.var1m != null"
+            class="tag-var"
+            :class="rel.var1m >= 0 ? 'up' : 'down'"
+            style="font-size: 0.68rem; padding: 1px 5px;"
+          >
+            {{ rel.var1m >= 0 ? '+' : '' }}{{ rel.var1m }} %
+          </span>
+        </div>
+      </NuxtLink>
+    </div>
+  </section>
 </template>
 
 <style scoped>
@@ -971,5 +1056,78 @@ useSeoMeta({
   background: #34d399;
   border-color: #34d399;
   color: #06281e;
+}
+
+/* Related Products Grid */
+.related-products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.related-product-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 13px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--text);
+  transition: all 0.18s ease;
+}
+
+.related-product-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(99, 144, 240, 0.45);
+  background: rgba(99, 144, 240, 0.06);
+}
+
+.related-product-thumb {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.related-product-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.related-product-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.related-product-title {
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.related-product-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.related-product-price {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text);
 }
 </style>
