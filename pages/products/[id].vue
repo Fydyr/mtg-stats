@@ -17,24 +17,45 @@ const { data, error } = await useFetch<{
 if (error.value) throw createError({ statusCode: 404, statusMessage: 'Produit introuvable', fatal: true })
 
 const setCode = computed(() => getIcon(data.value?.name ?? '')?.code || null)
+const isSecretLair = computed(() =>
+  /\bsecret\s+lair\b/i.test(data.value?.name ?? '') ||
+  ['sld', 'slc', 'slu'].includes((setCode.value || '').toLowerCase())
+)
 
-const { data: chaseData, pending: loadingChase } = useFetch<{
+const chaseCardsUrl = computed(() => {
+  const code = setCode.value || 'lookup'
+  const params = new URLSearchParams()
+  if (data.value?.id) params.set('productId', String(data.value.id))
+  if (data.value?.name) params.set('name', data.value.name)
+  if (data.value?.type) params.set('type', data.value.type)
+  const qs = params.toString()
+  return `/api/sets/${code}/top-cards${qs ? `?${qs}` : ''}`
+})
+
+const { data: chaseData, pending: loadingChase } = await useFetch<{
   ok: boolean
   setCode: string
+  productMode?: 'COLLECTOR' | 'STANDARD'
   cards: {
     id: string
     name: string
     rarity: string
+    treatment?: string | null
+    collectorNumber?: string | null
     priceEur: number | null
     priceFoilEur: number | null
     imageUrl: string | null
     cardmarketUrl: string | null
     scryfallUrl: string | null
   }[]
-}>(() => (setCode.value ? `/api/sets/${setCode.value}/top-cards` : null), {
-  lazy: true
+}>(chaseCardsUrl, {
+  lazy: true,
+  server: true,
+  immediate: !isSecretLair.value,
+  watch: [chaseCardsUrl]
 })
-const chaseCards = computed(() => chaseData.value?.cards || [])
+const chaseCards = computed(() => (isSecretLair.value ? [] : chaseData.value?.cards || []))
+const displaySetCode = computed(() => chaseData.value?.setCode || setCode.value || null)
 
 const timeRange = ref<'6m' | '1y' | '3y' | 'all'>('all')
 
@@ -82,6 +103,7 @@ const chartData = computed(() => ({
             backgroundColor: 'transparent',
             borderDash: [5, 5],
             fill: false,
+            spanGaps: true,
             tension: 0.25,
             pointRadius: 3,
             pointBackgroundColor: '#7aa7ff'
@@ -296,15 +318,32 @@ useSeoMeta({
   </div>
 
   <!-- CARTES MAÎTRESSES DU SET (CHASE CARDS SCRYFALL) -->
-  <section v-if="loadingChase || chaseCards.length" class="card" style="margin-top: 24px;">
+  <section v-if="!isSecretLair && (loadingChase || chaseCards.length)" class="card" style="margin-top: 24px;">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
       <div>
-        <h3 style="margin: 0 0 4px 0; display: flex; align-items: center; gap: 8px;">
-          <span>🃏 Cartes maîtresses de l'extension (Chase Cards)</span>
-          <span v-if="setCode" class="badge" style="background: rgba(91, 141, 239, 0.15); color: #7aa7ff;">{{ setCode }}</span>
+        <h3 style="margin: 0 0 4px 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span>
+            {{
+              chaseData?.productMode === 'COLLECTOR' || data?.type === 'COLLECTOR'
+                ? '✨ Cartes maîtresses — Boosters Collector (Chase Cards)'
+                : "🃏 Cartes maîtresses — Boosters Standard (Chase Cards)"
+            }}
+          </span>
+          <span v-if="displaySetCode" class="badge" style="background: rgba(91, 141, 239, 0.15); color: #7aa7ff;">{{ displaySetCode }}</span>
+          <span
+            v-if="chaseData?.productMode === 'COLLECTOR' || data?.type === 'COLLECTOR'"
+            class="badge badge-collector"
+            style="font-size: 0.7rem;"
+          >
+            Variants &amp; Foils Collector inclus
+          </span>
         </h3>
         <p class="muted" style="margin: 0; font-size: 0.85rem;">
-          Les cartes les plus recherchées du set avec leurs cotes de marché en version régulière et foil.
+          {{
+            chaseData?.productMode === 'COLLECTOR' || data?.type === 'COLLECTOR'
+              ? 'Les cartes et traitements spéciaux (Extended Art, Borderless, Showcase, Surge/Textured Foil) les plus chers disponibles dans les boosters Collector.'
+              : 'Les cartes les plus recherchées ouvrables dans ces boosters standard (hors variantes exclusives aux boîtes Collector).'
+          }}
         </p>
       </div>
       <span class="muted" style="font-size: 0.75rem;">Source : Scryfall API</span>
@@ -345,12 +384,20 @@ useSeoMeta({
           >
             {{ card.name }}
           </a>
+          <div v-if="card.treatment" style="margin: 1px 0 2px;">
+            <span class="badge" style="font-size: 0.62rem; padding: 1px 5px; background: rgba(178, 102, 255, 0.16); color: #c996ff; border: 1px solid rgba(178, 102, 255, 0.35);">
+              {{ card.treatment }}
+            </span>
+          </div>
           <div class="chase-card-meta">
             <span v-if="card.priceEur != null" class="chase-card-price">
               {{ card.priceEur }} €
             </span>
             <span v-if="card.priceFoilEur != null" class="chase-card-foil" title="Prix Foil">
               ✨ {{ card.priceFoilEur }} €
+            </span>
+            <span v-if="card.priceEur == null && card.priceFoilEur == null" class="muted" style="font-size: 0.72rem;">
+              Prix N/C
             </span>
             <span class="badge" :class="`badge-rarity-${card.rarity}`" style="font-size: 0.65rem; padding: 2px 6px;">
               {{ card.rarity === 'mythic' ? 'Mythique' : card.rarity === 'rare' ? 'Rare' : card.rarity }}

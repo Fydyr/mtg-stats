@@ -11,7 +11,8 @@ export default defineEventHandler(async (event) => {
   const isVintage = product.releaseDate ? new Date(product.releaseDate).getFullYear() < 2003 : false
   const cat = (product as any).category || 'BOOSTER_BOX'
 
-  let lastValidEv: number | null = null
+  const latestEvSnap = [...product.prices].reverse().find((s) => s.ev != null && Number(s.ev) > 0)
+  let lastValidEv: number | null = latestEvSnap?.ev != null ? Number(latestEvSnap.ev) : null
 
   const history = product.prices.map((s) => {
     const price = Number(s.price)

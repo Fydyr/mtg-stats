@@ -103,7 +103,7 @@ export function extractEditionName(rawName: string): string {
     .replace(/\b(?:draft|play|set|collector|theme|jumpstart|beyond)\s+booster\s+(?:box|display|pack)\b/gi, '')
     .replace(/\b(?:draft|play|set|collector|theme|jumpstart|beyond)\s+booster\b/gi, '')
     .replace(/\bbooster\s+(?:box|display|pack)\b/gi, '')
-    .replace(/\b(?:gift\s+edition\s+bundle|gift\s+bundle|compleat\s+edition\s+bundle|nightmare\s+bundle|bundle|fat\s*pack)\b/gi, '')
+    .replace(/\b(?:secret\s+lair\s+bundle|gift\s+edition\s+bundle|gift\s+bundle|compleat\s+edition\s+bundle|nightmare\s+bundle|bundle|fat\s*pack)\b/gi, '')
     .replace(/\b(?:booster|display|box)\b/gi, '')
     .replace(/[-–—:]+$/, '')
     .replace(/\s+/g, ' ')
