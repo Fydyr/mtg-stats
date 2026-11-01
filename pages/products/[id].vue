@@ -34,16 +34,15 @@ const isSecretLair = computed(() =>
 )
 
 const chaseCardsUrl = computed(() => {
-  const code = setCode.value || 'lookup'
   const params = new URLSearchParams()
   if (data.value?.id) params.set('productId', String(data.value.id))
   if (data.value?.name) params.set('name', data.value.name)
   if (data.value?.type) params.set('type', data.value.type)
   const qs = params.toString()
-  return `/api/sets/${code}/top-cards${qs ? `?${qs}` : ''}`
+  return `/api/sets/lookup/top-cards${qs ? `?${qs}` : ''}`
 })
 
-const { data: chaseData, pending: loadingChase } = await useFetch<{
+const { data: chaseData, pending: loadingChase, refresh: refreshChase } = await useFetch<{
   ok: boolean
   setCode: string
   productMode?: 'COLLECTOR' | 'STANDARD'
@@ -60,6 +59,7 @@ const { data: chaseData, pending: loadingChase } = await useFetch<{
     scryfallUrl: string | null
   }[]
 }>(chaseCardsUrl, {
+  key: () => `chase-cards-${route.params.id}`,
   lazy: true,
   server: true,
   immediate: !isSecretLair.value,
@@ -67,6 +67,12 @@ const { data: chaseData, pending: loadingChase } = await useFetch<{
 })
 const chaseCards = computed(() => (isSecretLair.value ? [] : chaseData.value?.cards || []))
 const displaySetCode = computed(() => chaseData.value?.setCode || setCode.value || null)
+
+onMounted(() => {
+  if (!isSecretLair.value && !chaseCards.value.length && !loadingChase.value) {
+    refreshChase()
+  }
+})
 
 const timeRange = ref<'6m' | '1y' | '3y' | 'all'>('all')
 
@@ -274,51 +280,78 @@ const topHitAnalysis = computed(() => {
   }
 })
 
-// Simulateur interactif de tirage éphémère (en mémoire uniquement, 0 stockage navigateur)
-const simulatedPullIds = ref<string[]>([])
-
-function toggleSimulatedCard(cardId: string) {
-  const idx = simulatedPullIds.value.indexOf(cardId)
-  if (idx >= 0) {
-    simulatedPullIds.value.splice(idx, 1)
-  } else {
-    simulatedPullIds.value.push(cardId)
-  }
+// Simulateur d'ouverture d'un booster complet de 15 cartes (1 Terrain + ratios/foils propres au set)
+type SimulatedPackCard = {
+  uid: string
+  id: string
+  name: string
+  rarity: 'common' | 'uncommon' | 'rare' | 'mythic' | 'special'
+  slotLabel: string
+  isLand: boolean
+  isFoil: boolean
+  treatment: string | null
+  collectorNumber: string | null
+  effectivePriceEur: number
+  priceEur: number | null
+  priceFoilEur: number | null
+  imageUrl: string | null
+  scryfallUrl: string | null
 }
 
-function simulateRandomPull() {
-  if (!chaseCards.value.length) return
-  const count = data.value?.category === 'SINGLE_BOOSTER' ? 1 : Math.min(3, chaseCards.value.length)
-  const pool = [...chaseCards.value]
-  const picked: string[] = []
-  for (let i = 0; i < count && pool.length > 0; i++) {
-    // Pondération réaliste : plus de chance de tirer les cartes #3-#8 que la #1
-    const idx = Math.floor(Math.pow(Math.random(), 0.75) * pool.length)
-    picked.push(pool[idx].id)
-    pool.splice(idx, 1)
+const loadingPackSim = ref(false)
+const simulatedPack = ref<{
+  setCode: string
+  boosterType: string
+  recipeSummary: string
+  stats: {
+    totalCards: number
+    foilCount: number
+    rareMythicCount: number
+    totalValueEur: number
+  } | null
+  cards: SimulatedPackCard[]
+} | null>(null)
+
+const effectiveBoosterCost = computed(() => {
+  if (data.value?.category === 'SINGLE_BOOSTER') return last.value ?? null
+  if (pricePerBooster.value != null) return pricePerBooster.value
+  return data.value?.unitComparison?.price ?? null
+})
+
+async function simulateFullBoosterPack() {
+  if (loadingPackSim.value) return
+  loadingPackSim.value = true
+  try {
+    const code = displaySetCode.value || setCode.value || 'lookup'
+    const res = await $fetch<{
+      ok: boolean
+      setCode: string
+      boosterType: string
+      recipeSummary: string
+      stats: {
+        totalCards: number
+        foilCount: number
+        rareMythicCount: number
+        totalValueEur: number
+      } | null
+      cards: SimulatedPackCard[]
+    }>(`/api/sets/${code}/simulate-pack`, {
+      query: {
+        productId: data.value?.id,
+        name: data.value?.name,
+        type: data.value?.type,
+        _t: Date.now()
+      }
+    })
+    if (res.ok && res.cards.length) {
+      simulatedPack.value = res
+    }
+  } catch {
+    // ignore
+  } finally {
+    loadingPackSim.value = false
   }
-  simulatedPullIds.value = picked
 }
-
-const simulatedTotal = computed(() => {
-  if (!simulatedPullIds.value.length) return 0
-  let sum = 0
-  for (const id of simulatedPullIds.value) {
-    const c = chaseCards.value.find((card) => card.id === id)
-    if (c) sum += bestCardPrice(c)
-  }
-  // Pour une boîte complète, on ajoute un socle estimé de rares/uncommons hors top hits (~30% de l'EV)
-  const bulkFloor =
-    data.value?.category === 'BOOSTER_BOX' && lastEv.value
-      ? Math.round(lastEv.value * 0.35 * 100) / 100
-      : 0
-  return Math.round((sum + bulkFloor) * 100) / 100
-})
-
-const simulatedBulkFloor = computed(() => {
-  if (data.value?.category !== 'BOOSTER_BOX' || !lastEv.value || !simulatedPullIds.value.length) return 0
-  return Math.round(lastEv.value * 0.35 * 100) / 100
-})
 
 const relatedProducts = computed(() => data.value?.relatedProducts ?? [])
 const compareSetIdsUrl = computed(() => {
@@ -527,13 +560,22 @@ useSeoMeta({
         </p>
       </div>
       <button
-        v-if="chaseCards.length"
-        class="btn ghost"
-        style="font-size:0.8rem; padding:7px 13px;"
-        @click="simulateRandomPull"
+        v-if="!isSecretLair && data?.category !== 'PRECON_DECK'"
+        class="btn"
+        style="font-size:0.82rem; padding:8px 14px;"
+        :disabled="loadingPackSim"
+        @click="simulateFullBoosterPack"
       >
         <Papicon name="Sparkles" :size="14" />
-        <span>{{ simulatedPullIds.length ? 'Relancer un tirage simulé' : 'Simuler un tirage aléatoire' }}</span>
+        <span>
+          {{
+            loadingPackSim
+              ? 'Ouverture du booster (15 cartes)...'
+              : simulatedPack
+                ? 'Ouvrir un autre booster (15 cartes)'
+                : 'Simuler l’ouverture d’un booster (15 cartes)'
+          }}
+        </span>
       </button>
     </div>
 
@@ -613,32 +655,93 @@ useSeoMeta({
       </div>
     </div>
 
-    <!-- Bandeau de simulation de tirage en direct -->
-    <div v-if="simulatedPullIds.length && last != null" class="sim-pull-banner">
-      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-        <span class="icon-box" style="width: 32px; height: 32px; border-radius: 9px; background: rgba(52, 211, 153, 0.14); color: #34d399;">
-          <Papicon name="Sparkles" :size="16" />
-        </span>
-        <div>
-          <div style="font-weight: 700; font-size: 0.92rem;">
-            Tirage simulé ({{ simulatedPullIds.length }} hit{{ simulatedPullIds.length > 1 ? 's' : '' }} sélectionné{{ simulatedPullIds.length > 1 ? 's' : '' }}<span v-if="simulatedBulkFloor > 0"> + {{ simulatedBulkFloor }} € de fonds de boîte estimé</span>) :
-            <span :class="simulatedTotal >= last ? 'up' : 'down'" style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; margin-left: 6px;">
-              {{ simulatedTotal.toFixed(2).replace('.', ',') }} €
-            </span>
+    <!-- Résultat du Booster Simulé (15 cartes avec Terrain + ratios/foils du set) -->
+    <div v-if="simulatedPack && simulatedPack.cards.length" class="sim-pack-container">
+      <div class="sim-pull-banner">
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <span class="icon-box" style="width: 36px; height: 36px; border-radius: 10px; background: rgba(52, 211, 153, 0.14); color: #34d399;">
+            <Papicon name="Card" :size="18" />
+          </span>
+          <div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span style="font-weight: 700; font-size: 0.95rem;">
+                Valeur des 15 cartes tirées :
+              </span>
+              <span
+                :class="effectiveBoosterCost != null && simulatedPack.stats && simulatedPack.stats.totalValueEur >= effectiveBoosterCost ? 'up' : 'down'"
+                style="font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 800;"
+              >
+                {{ simulatedPack.stats?.totalValueEur.toFixed(2).replace('.', ',') }} €
+              </span>
+              <span class="badge" style="background: rgba(99, 144, 240, 0.15); color: #8ab4ff;">
+                15 cartes · 1 Terrain garanti
+              </span>
+              <span v-if="simulatedPack.stats?.rareMythicCount" class="badge" style="background: rgba(245, 166, 35, 0.16); color: #fbbf24;">
+                {{ simulatedPack.stats.rareMythicCount }} Rare/Mythique{{ simulatedPack.stats.rareMythicCount > 1 ? 's' : '' }}
+              </span>
+              <span v-if="simulatedPack.stats?.foilCount" class="badge" style="background: rgba(168, 85, 247, 0.16); color: #d8b4fe;">
+                <Papicon name="Sparkles" :size="11" />
+                <span>{{ simulatedPack.stats.foilCount }} Foil{{ simulatedPack.stats.foilCount > 1 ? 's' : '' }}</span>
+              </span>
+            </div>
+            <div class="muted" style="font-size: 0.78rem; margin-top: 3px;">
+              {{ simulatedPack.recipeSummary }}
+              <template v-if="effectiveBoosterCost != null && simulatedPack.stats">
+                · Bilan vs coût d'un booster ({{ effectiveBoosterCost.toFixed(2).replace('.', ',') }} €) :
+                <strong :class="simulatedPack.stats.totalValueEur >= effectiveBoosterCost ? 'up' : 'down'">
+                  {{
+                    simulatedPack.stats.totalValueEur >= effectiveBoosterCost
+                      ? `+${(simulatedPack.stats.totalValueEur - effectiveBoosterCost).toFixed(2).replace('.', ',')} € (Booster rentable !)`
+                      : `${(simulatedPack.stats.totalValueEur - effectiveBoosterCost).toFixed(2).replace('.', ',')} €`
+                  }}
+                </strong>
+              </template>
+            </div>
           </div>
-          <div class="muted" style="font-size: 0.78rem;">
-            Bilan face au prix d'achat ({{ last }} €) :
-            <strong :class="simulatedTotal >= last ? 'up' : 'down'">
-              {{ simulatedTotal >= last ? `+${(simulatedTotal - last).toFixed(2).replace('.', ',')} € (Boîte rentabilisée !)` : `${(simulatedTotal - last).toFixed(2).replace('.', ',')} € (Encore ${(last - simulatedTotal).toFixed(2).replace('.', ',')} € pour rembourser)` }}
-            </strong>
-            · <em>Cliquez sur les cartes maîtresses ci-dessous pour ajuster votre tirage.</em>
+        </div>
+        <button class="btn ghost" style="padding: 5px 10px; font-size: 0.75rem;" @click="simulatedPack = null">
+          <Papicon name="Cross" :size="12" />
+          <span>Fermer le booster</span>
+        </button>
+      </div>
+
+      <!-- Grille des 15 cartes du booster -->
+      <div class="sim-pack-grid">
+        <div
+          v-for="c in simulatedPack.cards"
+          :key="c.uid"
+          class="sim-pack-card"
+          :class="{ 'is-foil-card': c.isFoil, 'is-land-card': c.isLand, 'is-rm-card': c.rarity === 'rare' || c.rarity === 'mythic' }"
+        >
+          <div class="sim-pack-slot-tag" :class="{ foil: c.isFoil, land: c.isLand }">
+            <Papicon v-if="c.isFoil" name="Sparkles" :size="10" />
+            <span>{{ c.slotLabel }}</span>
+          </div>
+          <a
+            :href="c.scryfallUrl || '#'"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="chase-card-img-link"
+            :title="`${c.name} (${c.slotLabel})`"
+          >
+            <img v-if="c.imageUrl" :src="c.imageUrl" :alt="c.name" class="chase-card-img" loading="lazy" />
+          </a>
+          <div class="chase-card-info">
+            <a :href="c.scryfallUrl || '#'" target="_blank" rel="noopener noreferrer" class="chase-card-name" :title="c.name">
+              {{ c.name }}
+            </a>
+            <div class="chase-card-meta">
+              <span :class="c.isFoil ? 'chase-card-foil' : 'chase-card-price'" style="display:inline-flex; align-items:center; gap:3px;">
+                <Papicon v-if="c.isFoil" name="Sparkles" :size="11" />
+                <span>{{ c.effectivePriceEur.toFixed(2).replace('.', ',') }} €</span>
+              </span>
+              <span class="badge" :class="`badge-rarity-${c.rarity}`" style="font-size: 0.6rem; padding: 1px 5px;">
+                {{ c.isLand ? 'Terrain' : c.rarity === 'mythic' ? 'Mythique' : c.rarity === 'rare' ? 'Rare' : c.rarity === 'uncommon' ? 'Unco' : 'Commune' }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
-      <button class="btn ghost" style="padding: 5px 10px; font-size: 0.75rem;" @click="simulatedPullIds = []">
-        <Papicon name="Cross" :size="12" />
-        <span>Réinitialiser</span>
-      </button>
     </div>
   </section>
 
@@ -686,7 +789,6 @@ useSeoMeta({
         v-for="card in chaseCards"
         :key="card.id"
         class="chase-card-item"
-        :class="{ 'is-simulated': simulatedPullIds.includes(card.id) }"
       >
         <div class="chase-card-img-wrap">
           <a
@@ -704,16 +806,6 @@ useSeoMeta({
               loading="lazy"
             />
           </a>
-          <button
-            v-if="last != null && data?.category !== 'PRECON_DECK'"
-            type="button"
-            class="sim-card-toggle"
-            :class="{ active: simulatedPullIds.includes(card.id) }"
-            :title="simulatedPullIds.includes(card.id) ? 'Retirer du tirage simulé' : 'Simuler ce hit dans mon ouverture'"
-            @click="toggleSimulatedCard(card.id)"
-          >
-            <Papicon :name="simulatedPullIds.includes(card.id) ? 'Check' : 'Plus'" :size="12" />
-          </button>
         </div>
         <div class="chase-card-info">
           <a
@@ -1017,6 +1109,67 @@ useSeoMeta({
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.sim-pack-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sim-pack-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(122px, 1fr));
+  gap: 11px;
+}
+
+.sim-pack-card {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.sim-pack-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent);
+}
+
+.sim-pack-card.is-rm-card {
+  border-color: rgba(245, 166, 35, 0.45);
+}
+
+.sim-pack-card.is-foil-card {
+  border-color: rgba(168, 85, 247, 0.55);
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.16);
+}
+
+.sim-pack-slot-tag {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 3px 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sim-pack-slot-tag.foil {
+  background: linear-gradient(90deg, rgba(168, 85, 247, 0.22), rgba(245, 166, 35, 0.2));
+  color: #f3e8ff;
+}
+
+.sim-pack-slot-tag.land {
+  background: rgba(52, 211, 153, 0.14);
+  color: #6ee7b7;
 }
 
 .chase-card-img-wrap {
