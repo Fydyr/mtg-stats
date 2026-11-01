@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const route = useRoute()
 const isMobileMenuOpen = ref(false)
+const isCommandPaletteOpen = ref(false)
 
 // Ferme automatiquement le menu mobile lors d'un changement de page
 watch(() => route.path, () => {
@@ -55,18 +56,34 @@ function toggleMobileMenu() {
           </NuxtLink>
         </nav>
 
-        <!-- Bouton Menu Mobile avec Papicon -->
-        <button
-          class="mobile-menu-btn"
-          :class="{ open: isMobileMenuOpen }"
-          aria-label="Menu de navigation"
-          :aria-expanded="isMobileMenuOpen"
-          @click="toggleMobileMenu"
-        >
-          <Papicon :name="isMobileMenuOpen ? 'Cross' : 'Menu'" :size="20" />
-        </button>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button
+            type="button"
+            class="btn ghost header-search-btn"
+            style="padding: 6px 11px; font-size: 0.8rem; border-radius: 999px;"
+            title="Recherche globale rapide (Ctrl+K)"
+            @click="isCommandPaletteOpen = true"
+          >
+            <Papicon name="Search" :size="15" />
+            <span class="header-search-label">Rechercher</span>
+            <kbd class="header-search-kbd">Ctrl K</kbd>
+          </button>
+
+          <!-- Bouton Menu Mobile avec Papicon -->
+          <button
+            class="mobile-menu-btn"
+            :class="{ open: isMobileMenuOpen }"
+            aria-label="Menu de navigation"
+            :aria-expanded="isMobileMenuOpen"
+            @click="toggleMobileMenu"
+          >
+            <Papicon :name="isMobileMenuOpen ? 'Cross' : 'Menu'" :size="20" />
+          </button>
+        </div>
       </div>
     </header>
+
+    <CommandPalette v-model:open="isCommandPaletteOpen" />
 
     <!-- Tiroir / Menu Mobile -->
     <Teleport to="body">
