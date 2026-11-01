@@ -219,11 +219,11 @@ async function syncGoogleSheet() {
 async function syncEv() {
   syncingEv.value = true
   try {
-    const res = await $fetch<{ ok: boolean; month: string; matchedCount: number }>('/api/admin/sync-ev', {
+    const res = await $fetch<{ ok: boolean; month: string; matchedCount: number; setsAnalyzed?: number }>('/api/admin/sync-ev', {
       method: 'POST',
       body: { month: month.value }
     })
-    notify(`Synchronisation EV réussie : ${res.matchedCount} boîtes associées avec leur Expected Value pour ${res.month} !`)
+    notify(`Synchronisation EV réussie : ${res.matchedCount} scellés (boîtes, bundles, boosters) calculés via Scryfall/Cardmarket & Dawnglare pour ${res.month} !`)
     await load()
   } catch (e: any) {
     notify(e?.statusMessage || 'Erreur lors de la synchronisation des EV', true)

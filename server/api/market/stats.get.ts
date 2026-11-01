@@ -35,27 +35,36 @@ export default defineEventHandler(async () => {
     const p6 = byMonth.get(m6) ?? p.prices.find((s) => s.month <= m6)?.price ?? null
 
     const currentSnap = p.prices.find((s) => s.month === month)
-    const rawEv = currentSnap?.ev != null ? Number(currentSnap.ev) : null
+    const fallbackEvSnap = p.prices.find((s) => s.ev != null && Number(s.ev) > 0)
+    const rawEv = currentSnap?.ev != null && Number(currentSnap.ev) > 0
+      ? Number(currentSnap.ev)
+      : fallbackEvSnap?.ev != null
+        ? Number(fallbackEvSnap.ev)
+        : null
+
     const isVintage = p.releaseDate ? new Date(p.releaseDate).getFullYear() < 2003 : false
-    const isBox = ((p as any).category || 'BOOSTER_BOX') === 'BOOSTER_BOX' && (p.type === 'DRAFT' || p.type === 'PLAY' || p.type === 'SET')
-    const currentEv = (rawEv != null && rawEv > 0 && isBox && !isVintage && rawEv < 3000) ? rawEv : null
+    const cat = (p as any).category || 'BOOSTER_BOX'
+    const isBox = cat === 'BOOSTER_BOX'
+
+    const rawEvRatio = (rawEv != null && rawEv > 0 && isBox && !isVintage && rawEv < 3500 && current != null && current > 0)
+      ? Math.round((rawEv / current) * 100)
+      : null
+    const isValidEv = rawEvRatio != null && rawEvRatio >= 15 && rawEvRatio <= 220
+    const currentEv = isValidEv ? rawEv : null
+    const evRatio = isValidEv ? rawEvRatio : null
 
     const var1m = variation(current, previous)
     const var3m = variation(current, p3 ? Number(p3) : null)
     const var6m = variation(current, p6 ? Number(p6) : null)
-    const rawEvRatio = (currentEv != null && current != null && current > 0)
-      ? Math.round((currentEv / current) * 100)
-      : null
-    const evRatio = (rawEvRatio != null && rawEvRatio >= 15 && rawEvRatio <= 250) ? rawEvRatio : null
 
     return {
       id: p.id,
       name: p.name,
-      category: (p as any).category || 'BOOSTER_BOX',
+      category: cat,
       type: p.type,
       deckType: (p as any).deckType || null,
       releaseDate: p.releaseDate,
-      cardmarket: cardmarketLink(p.name, p.type, p.cardmarketUrl, (p as any).category),
+      cardmarket: cardmarketLink(p.name, p.type, p.cardmarketUrl, cat),
       price: current,
       ev: currentEv,
       evRatio,
@@ -63,14 +72,14 @@ export default defineEventHandler(async () => {
       var3m,
       var6m
     }
-  }).filter((i) => i.price != null && i.price > 0 && (i.var1m == null || i.var1m > -95))
+  }).filter((i) => i.category === 'BOOSTER_BOX' && i.price != null && i.price > 0 && (i.var1m == null || i.var1m > -95))
 
   // 1. Tendances globales
   const withVar1m = items.filter((i) => i.var1m != null)
   const withVar3m = items.filter((i) => i.var3m != null)
   const withVar6m = items.filter((i) => i.var6m != null)
 
-  const avgPrice = Math.round(items.reduce((acc, i) => acc + i.price!, 0) / items.length)
+  const avgPrice = items.length ? Math.round(items.reduce((acc, i) => acc + i.price!, 0) / items.length) : 0
   const avgVar1m = withVar1m.length ? withVar1m.reduce((acc, i) => acc + i.var1m!, 0) / withVar1m.length : 0
   const avgVar3m = withVar3m.length ? withVar3m.reduce((acc, i) => acc + i.var3m!, 0) / withVar3m.length : 0
   const avgVar6m = withVar6m.length ? withVar6m.reduce((acc, i) => acc + i.var6m!, 0) / withVar6m.length : 0

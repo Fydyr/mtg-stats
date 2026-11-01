@@ -135,21 +135,22 @@ const options = {
 
 const isVintage = computed(() => data.value?.releaseDate ? new Date(data.value.releaseDate).getFullYear() < 2003 : false)
 const isBundle = computed(() => data.value?.type === 'BUNDLE' || /\b(?:bundle|fat\s*pack)\b/i.test(data.value?.name ?? ''))
-const isBox = computed(() => data.value?.category === 'BOOSTER_BOX' && (data.value?.type === 'DRAFT' || data.value?.type === 'PLAY' || data.value?.type === 'SET'))
+const canHaveEv = computed(() => data.value?.category !== 'PRECON_DECK' && !isVintage.value)
 
 const first = computed(() => filteredHistory.value[0]?.price)
 const last = computed(() => filteredHistory.value.at(-1)?.price)
-const lastEv = computed(() => (isBox.value && !isVintage.value) ? filteredHistory.value.at(-1)?.ev : null)
+const rawLastEv = computed(() => (canHaveEv.value ? (filteredHistory.value.at(-1)?.ev ?? null) : null))
 const total = computed(() => {
   if (!first.value || !last.value || first.value <= 0 || last.value <= 0) return null
   const diff = ((last.value - first.value) / first.value) * 100
   return diff <= -95 ? null : diff
 })
 const evRatio = computed(() => {
-  if (!isBox.value || isVintage.value || lastEv.value == null || last.value == null || last.value <= 0) return null
-  const ratio = Math.round((lastEv.value / last.value) * 100)
-  return ratio >= 15 && ratio <= 250 ? ratio : null
+  if (!canHaveEv.value || rawLastEv.value == null || last.value == null || last.value <= 0) return null
+  const ratio = Math.round((rawLastEv.value / last.value) * 100)
+  return ratio >= 15 && ratio <= 220 ? ratio : null
 })
+const lastEv = computed(() => (evRatio.value != null ? rawLastEv.value : null))
 
 const reqUrl = useRequestURL()
 const config = useRuntimeConfig()

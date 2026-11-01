@@ -131,8 +131,10 @@ const items = computed(() => {
     const rawEvRatio = (i.ev != null && i.price != null && i.price > 0 && !isVintage)
       ? Math.round((i.ev / i.price) * 100)
       : null
-    // L'ouverture d'une boîte est réaliste entre 15% et 250% (au-delà, anomalie de données)
-    const evRatio = (rawEvRatio != null && rawEvRatio >= 15 && rawEvRatio <= 250) ? rawEvRatio : null
+    // L'ouverture d'un scellé est réaliste entre 15% et 220% (au-delà, anomalie de données)
+    const isValidEv = rawEvRatio != null && rawEvRatio >= 15 && rawEvRatio <= 220
+    const evRatio = isValidEv ? rawEvRatio : null
+    const ev = isValidEv ? i.ev : null
 
     // Si le prix est <= 0 ou la variation <= -95% (bug d'import à 0€), on assainit les valeurs
     const price = (i.price != null && i.price > 0) ? i.price : null
@@ -141,6 +143,7 @@ const items = computed(() => {
     return {
       ...i,
       price,
+      ev,
       var1m,
       category: (i.category || 'BOOSTER_BOX') as 'BOOSTER_BOX' | 'SINGLE_BOOSTER' | 'PRECON_DECK',
       evRatio
@@ -244,7 +247,15 @@ const withEvRatio = computed(() => categoryItems.value.filter((i) => i.evRatio !
 const bestEv = computed(() => [...withEvRatio.value].sort((a, b) => b.evRatio! - a.evRatio!)[0])
 const profitableCount = computed(() => categoryItems.value.filter((i) => i.evRatio != null && i.evRatio >= 100).length)
 
-const eur = (n: number | null) => n == null ? '-' : new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+const eur = (n: number | null) =>
+  n == null
+    ? '-'
+    : new Intl.NumberFormat('fr-FR', {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: n < 25 && !Number.isInteger(n) ? 2 : 0,
+        maximumFractionDigits: n < 25 ? 2 : 0
+      }).format(n)
 const pct = (n: number | null) => n == null ? '-' : `${n > 0 ? '+' : ''}${n.toFixed(2).replace('.', ',')} %`
 const cls = (n: number | null) => n == null ? 'muted' : n > 0 ? 'up' : n < 0 ? 'down' : 'muted'
 const year = (d: string | null) => d ? new Date(d).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }) : '-'

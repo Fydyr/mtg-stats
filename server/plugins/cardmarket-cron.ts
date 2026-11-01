@@ -1,5 +1,6 @@
 import { Cron } from 'croner'
 import { syncCardmarketData } from '../utils/sync-cardmarket'
+import { syncExpectedValues } from '../utils/sync-ev'
 
 export default defineNitroPlugin(() => {
   // Planification : chaque lundi à 04h00 (fuseau Europe/Paris)
@@ -10,6 +11,10 @@ export default defineNitroPlugin(() => {
       const res = await syncCardmarketData(undefined, 'low')
       console.log(
         `[Cron Cardmarket] Synchronisation réussie pour ${res.month} (prix minimum) : ${res.productsCount} boîtes traitées, ${res.pricesCount} prix enregistrés.`
+      )
+      const evRes = await syncExpectedValues(res.month)
+      console.log(
+        `[Cron EV] Synchronisation EV réussie pour ${evRes.month} : ${evRes.matchedCount} produits associés.`
       )
     } catch (err: any) {
       console.error('[Cron Cardmarket] Erreur lors de la synchronisation hebdomadaire :', err?.message || err)
