@@ -231,7 +231,10 @@ useSeoMeta({
 </script>
 
 <template>
-  <NuxtLink :to="data?.category === 'PRECON_DECK' ? '/decks' : data?.category === 'SINGLE_BOOSTER' ? '/boosters' : '/boxes'" class="back">← Retour au catalogue</NuxtLink>
+  <NuxtLink :to="data?.category === 'PRECON_DECK' ? '/decks' : data?.category === 'SINGLE_BOOSTER' ? '/boosters' : '/boxes'" class="back">
+    <Papicon name="ArrowLeft" :size="15" />
+    <span>Retour au catalogue</span>
+  </NuxtLink>
   <section class="hero product-hero">
     <div v-if="data?.imageUrl" class="product-hero-image-wrap">
       <img
@@ -251,7 +254,7 @@ useSeoMeta({
         />
         <span>{{ data?.name }}</span>
       </h1>
-      <p>
+      <p style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         <span v-if="data?.category === 'PRECON_DECK'" class="badge" :class="`badge-${(data?.deckType || 'other').toLowerCase()}`">
           {{ data?.deckType || 'DECK' }}
         </span>
@@ -261,12 +264,18 @@ useSeoMeta({
         <span v-else class="badge" :class="`badge-${data?.type.toLowerCase()}`">
           {{ data?.category === 'SINGLE_BOOSTER' ? `Booster ${data?.type}` : `Boîte ${data?.type}` }}
         </span>
-        <span v-if="data?.releaseDate"> · sorti en {{ new Date(data.releaseDate).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) }}</span>
+        <span v-if="data?.releaseDate" style="display:inline-flex; align-items:center; gap:5px;">
+          <Papicon name="Calendar" :size="14" :opacity="0.7" />
+          <span>Sorti en {{ new Date(data.releaseDate).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) }}</span>
+        </span>
       </p>
-      <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
-        <a class="btn" :href="data?.cardmarket" target="_blank" rel="noopener noreferrer">Voir sur Cardmarket ↗</a>
-        <NuxtLink :to="`/compare?ids=${data?.id}`" class="btn ghost" style="display:inline-flex; align-items:center; gap:6px;">
-          <span>⚖️</span>
+      <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
+        <a class="btn" :href="data?.cardmarket" target="_blank" rel="noopener noreferrer">
+          <span>Voir sur Cardmarket</span>
+          <Papicon name="ExternalLink" :size="14" />
+        </a>
+        <NuxtLink :to="`/compare?ids=${data?.id}`" class="btn ghost">
+          <Papicon name="Pillar" :size="15" />
           <span>Comparer</span>
         </NuxtLink>
       </div>
@@ -274,23 +283,32 @@ useSeoMeta({
   </section>
 
   <section class="stats">
-    <div class="card stat"><div class="label">Prix actuel</div><div class="value">{{ last ?? '-' }} €</div></div>
+    <div class="card stat">
+      <div class="label"><Papicon name="PiggyBank" :size="13" /> <span>Prix actuel</span></div>
+      <div class="value">{{ last ?? '-' }} €</div>
+    </div>
     <div v-if="data?.stock != null" class="card stat">
-      <div class="label">Stock disponible</div>
-      <div class="value" :style="{ color: data.stock > 0 ? '#4cb782' : 'var(--muted)' }">{{ data.stock }}</div>
+      <div class="label"><Papicon name="Archive" :size="13" /> <span>Stock disponible</span></div>
+      <div class="value" :style="{ color: data.stock > 0 ? '#34d399' : 'var(--muted)' }">{{ data.stock }}</div>
       <div class="sub">{{ data.stock > 0 ? 'En vente sur Cardmarket' : 'Rupture' }}</div>
     </div>
     <div v-if="lastEv != null" class="card stat">
-      <div class="label">EV estimée</div>
-      <div class="value" style="color: #7aa7ff;">{{ lastEv }} €</div>
+      <div class="label"><Papicon name="Sparkles" :size="13" /> <span>EV estimée</span></div>
+      <div class="value" style="color: #8ab4ff;">{{ lastEv }} €</div>
     </div>
     <div v-if="evRatio != null" class="card stat">
-      <div class="label">Ratio EV / Prix</div>
+      <div class="label"><Papicon name="Coefficient" :size="13" /> <span>Ratio EV / Prix</span></div>
       <div class="value" :class="evRatio >= 100 ? 'up' : 'muted'">{{ evRatio }} %</div>
-      <div class="sub">{{ evRatio >= 100 ? '⚡ Rentable à l\'ouverture' : 'Sous l\'EV' }}</div>
+      <div class="sub" style="display:flex; align-items:center; gap:4px;">
+        <template v-if="evRatio >= 100">
+          <Papicon name="Sparkles" :size="13" color="#34d399" />
+          <span class="up">Rentable à l'ouverture</span>
+        </template>
+        <span v-else>Sous l'EV</span>
+      </div>
     </div>
     <div class="card stat">
-      <div class="label">Évolution ({{ timeRange === 'all' ? 'totale' : timeRanges.find(r => r.value === timeRange)?.label }})</div>
+      <div class="label"><Papicon name="Pie" :size="13" /> <span>Évolution ({{ timeRange === 'all' ? 'totale' : timeRanges.find(r => r.value === timeRange)?.label }})</span></div>
       <div class="value" :class="total == null ? 'muted' : total >= 0 ? 'up' : 'down'">
         {{ total == null ? '-' : (total > 0 ? '+' : '') + total.toFixed(1).replace('.', ',') + ' %' }}
       </div>
@@ -300,14 +318,17 @@ useSeoMeta({
 
   <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
-      <h3 style="margin:0;">Historique des prix</h3>
+      <h3 style="margin:0; display:flex; align-items:center; gap:8px;">
+        <Papicon name="Pie" :size="18" color="var(--accent-hover)" />
+        <span>Historique des prix</span>
+      </h3>
       <div class="chips">
         <button
           v-for="r in timeRanges"
           :key="r.value"
           class="chip"
           :class="{ active: timeRange === r.value }"
-          style="padding: 4px 10px; font-size: 0.8rem;"
+          style="padding: 5px 12px; font-size: 0.8rem;"
           @click="timeRange = r.value"
         >
           {{ r.label }}
@@ -322,14 +343,17 @@ useSeoMeta({
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
       <div>
         <h3 style="margin: 0 0 4px 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span class="icon-box" style="width: 30px; height: 30px; border-radius: 9px;">
+            <Papicon :name="chaseData?.productMode === 'COLLECTOR' || data?.type === 'COLLECTOR' ? 'Sparkles' : 'Card'" :size="16" />
+          </span>
           <span>
             {{
               chaseData?.productMode === 'COLLECTOR' || data?.type === 'COLLECTOR'
-                ? '✨ Cartes maîtresses — Boosters Collector (Chase Cards)'
-                : "🃏 Cartes maîtresses — Boosters Standard (Chase Cards)"
+                ? 'Cartes maîtresses — Boosters Collector (Chase Cards)'
+                : 'Cartes maîtresses — Boosters Standard (Chase Cards)'
             }}
           </span>
-          <span v-if="displaySetCode" class="badge" style="background: rgba(91, 141, 239, 0.15); color: #7aa7ff;">{{ displaySetCode }}</span>
+          <span v-if="displaySetCode" class="badge" style="background: rgba(99, 144, 240, 0.15); color: #8ab4ff;">{{ displaySetCode }}</span>
           <span
             v-if="chaseData?.productMode === 'COLLECTOR' || data?.type === 'COLLECTOR'"
             class="badge badge-collector"
@@ -393,8 +417,9 @@ useSeoMeta({
             <span v-if="card.priceEur != null" class="chase-card-price">
               {{ card.priceEur }} €
             </span>
-            <span v-if="card.priceFoilEur != null" class="chase-card-foil" title="Prix Foil">
-              ✨ {{ card.priceFoilEur }} €
+            <span v-if="card.priceFoilEur != null" class="chase-card-foil" title="Prix Foil" style="display:inline-flex; align-items:center; gap:3px;">
+              <Papicon name="Sparkles" :size="11" />
+              <span>{{ card.priceFoilEur }} €</span>
             </span>
             <span v-if="card.priceEur == null && card.priceFoilEur == null" class="muted" style="font-size: 0.72rem;">
               Prix N/C

@@ -152,9 +152,9 @@ function isBundleItem(r: { type?: string; name?: string }) {
 const categoryFilter = ref('ALL')
 const CATEGORIES = [
   { v: 'ALL', l: 'Toutes catégories' },
-  { v: 'BOOSTER_BOX', l: '📦 Boîtes' },
-  { v: 'SINGLE_BOOSTER', l: '🃏 Boosters' },
-  { v: 'PRECON_DECK', l: '⚔️ Decks' }
+  { v: 'BOOSTER_BOX', l: 'Boîtes' },
+  { v: 'SINGLE_BOOSTER', l: 'Boosters' },
+  { v: 'PRECON_DECK', l: 'Decks' }
 ]
 
 function notify(msg: string, error = false) {
@@ -395,9 +395,17 @@ useSeoMeta({
 
 <template>
   <div v-if="!me?.admin" class="card login">
-    <h1>Connexion admin</h1>
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+      <span class="icon-box" style="width: 34px; height: 34px; border-radius: 10px;">
+        <Papicon name="Lock" :size="18" />
+      </span>
+      <h1 style="margin:0; font-size:1.35rem;">Connexion admin</h1>
+    </div>
     <input id="password" v-model="password" type="password" class="input" placeholder="Mot de passe" @keyup.enter="login" />
-    <button class="btn" @click="login">Se connecter</button>
+    <button class="btn" @click="login">
+      <Papicon name="Login" :size="15" />
+      <span>Se connecter</span>
+    </button>
   </div>
 
   <template v-else>
@@ -406,13 +414,17 @@ useSeoMeta({
         <h1>Administration & Prix</h1>
         <p>Gérez les boîtes de boosters, synchronisez le Google Sheet ou renseignez vos prix.</p>
       </div>
-      <button class="btn ghost" @click="logout">Se déconnecter</button>
+      <button class="btn ghost" @click="logout">
+        <Papicon name="Logout" :size="15" />
+        <span>Se déconnecter</span>
+      </button>
     </section>
 
     <!-- Importation / Synchronisation directe Cardmarket -->
     <div class="card" style="margin:20px 0; border-color: rgba(91, 141, 239, 0.4);">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
         <h3 style="display:flex; align-items:center; gap:8px;">
+          <Papicon name="Sparkles" :size="18" color="var(--accent-hover)" />
           <span>Synchronisation directe Cardmarket (Catalogue & Prix)</span>
         </h3>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -424,7 +436,8 @@ useSeoMeta({
             style="background: rgba(91, 141, 239, 0.15); color: var(--accent); text-decoration:none;"
             title="Télécharger le catalogue brut S3"
           >
-            Fichier Produits S3 ↗
+            <span>Fichier Produits S3</span>
+            <Papicon name="ExternalLink" :size="11" />
           </a>
           <a
             href="https://downloads.s3.cardmarket.com/productCatalog/priceGuide/price_guide_1.json"
@@ -434,7 +447,8 @@ useSeoMeta({
             style="background: rgba(91, 141, 239, 0.15); color: var(--accent); text-decoration:none;"
             title="Télécharger le guide des prix brut S3"
           >
-            Fichier Prix S3 ↗
+            <span>Fichier Prix S3</span>
+            <Papicon name="ExternalLink" :size="11" />
           </a>
         </div>
       </div>
@@ -460,11 +474,12 @@ useSeoMeta({
         <div style="display:flex; align-items:flex-end;">
           <button
             class="btn"
-            style="width:100%; padding:10px 16px; font-weight:600;"
+            style="width:100%; padding:10px 16px; font-weight:600; justify-content:center;"
             :disabled="cmSyncingDirect"
             @click="syncCardmarketDirectly"
           >
-            {{ cmSyncingDirect ? 'Synchronisation en cours...' : '⚡ Synchroniser Cardmarket (1 clic)' }}
+            <Papicon name="Sparkles" :size="15" />
+            <span>{{ cmSyncingDirect ? 'Synchronisation en cours...' : 'Synchroniser Cardmarket (1 clic)' }}</span>
           </button>
         </div>
       </div>
@@ -600,25 +615,32 @@ useSeoMeta({
           v-if="anomaliesCount > 0"
           class="chip"
           :class="{ active: onlyAnomalies }"
-          style="border-color: rgba(229, 96, 79, 0.5); color: #e5604f; display: inline-flex; align-items: center; gap: 4px;"
+          style="border-color: rgba(248, 113, 113, 0.5); color: var(--down); display: inline-flex; align-items: center; gap: 5px;"
           title="Afficher uniquement les produits dont la variation est supérieure à +100% ou inférieure à -50%"
           @click="onlyAnomalies = !onlyAnomalies"
         >
-          <span>⚠️ {{ anomaliesCount }} anomalie(s)</span>
+          <Papicon name="AlertTriangle" :size="14" />
+          <span>{{ anomaliesCount }} anomalie(s)</span>
         </button>
       </div>
       <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn ghost" :disabled="syncingImages" title="Télécharge et associe automatiquement les visuels officiels depuis MTGJSON / TCGplayer" @click="syncImages">
-          {{ syncingImages ? 'Synchro Images...' : '🖼️ Synchroniser Images' }}
+          <Papicon name="Gallery" :size="14" />
+          <span>{{ syncingImages ? 'Synchro Images...' : 'Synchroniser Images' }}</span>
         </button>
         <button class="btn ghost" :disabled="syncingReleaseDates" title="Télécharge et associe automatiquement les dates de sortie des boosters, decks et boîtes depuis MTGJSON et Scryfall" @click="syncReleaseDates">
-          {{ syncingReleaseDates ? 'Dates...' : '🗓️ Synchroniser Dates' }}
+          <Papicon name="Calendar" :size="14" />
+          <span>{{ syncingReleaseDates ? 'Dates...' : 'Synchroniser Dates' }}</span>
         </button>
         <button class="btn ghost" :disabled="syncingEv" title="Récupère les Expected Values calculées depuis Dawnglare / TCG" @click="syncEv">
-          {{ syncingEv ? 'Synchro EV...' : 'Synchroniser EV' }}
+          <Papicon name="PiggyBank" :size="14" />
+          <span>{{ syncingEv ? 'Synchro EV...' : 'Synchroniser EV' }}</span>
         </button>
         <button class="btn ghost" @click="prefill">Pré-remplir avec mois précédent</button>
-        <button class="btn" @click="save">Enregistrer</button>
+        <button class="btn" @click="save">
+          <Papicon name="Check" :size="14" />
+          <span>Enregistrer</span>
+        </button>
       </div>
     </div>
 
@@ -776,9 +798,9 @@ useSeoMeta({
                 <span
                   v-if="isAnomaly(r)"
                   title="Variation suspecte (> +100% ou < -50%)"
-                  style="font-size: 0.72rem; cursor: help;"
+                  style="font-size: 0.72rem; cursor: help; color: var(--down); display:inline-flex;"
                 >
-                  ⚠️
+                  <Papicon name="AlertTriangle" :size="13" />
                 </span>
                 <span class="tag-var" :class="diff(r) == null ? 'muted' : diff(r)! >= 0 ? 'up' : 'down'" style="font-size: 0.7rem; padding: 2px 4px;">
                   {{ diff(r) == null ? '-' : (diff(r)! > 0 ? '+' : '') + diff(r)!.toFixed(1).replace('.', ',') + '%' }}
@@ -796,7 +818,8 @@ useSeoMeta({
                   rel="noopener noreferrer"
                   style="font-size: 0.7rem; padding: 2px 5px; white-space: nowrap; flex-shrink: 0;"
                 >
-                  Voir ↗
+                  <span>Voir</span>
+                  <Papicon name="ExternalLink" :size="11" />
                 </a>
                 <input
                   v-model="r.cardmarketUrl"
@@ -812,11 +835,11 @@ useSeoMeta({
             <td style="text-align: center;">
               <button
                 class="btn ghost"
-                style="padding: 2px 5px; font-size: 0.72rem; border-color: transparent; color: var(--down);"
+                style="padding: 4px 6px; font-size: 0.72rem; border-color: transparent; color: var(--down);"
                 title="Supprimer cette boîte"
                 @click="deleteProduct(r.id, r.name)"
               >
-                ✕
+                <Papicon name="Trash" :size="14" />
               </button>
             </td>
           </tr>

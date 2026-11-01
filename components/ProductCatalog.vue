@@ -361,12 +361,15 @@ onMounted(() => {
 
   <!-- BARRE D'OUTILS ET FILTRES -->
   <div class="toolbar" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-    <input
-      id="search"
-      v-model="search"
-      class="input grow"
-      :placeholder="category === 'PRECON_DECK' ? 'Rechercher un deck préconstruit...' : 'Rechercher une édition...'"
-    />
+    <div class="search-input-wrap">
+      <Papicon name="Search" :size="16" class="search-icon" />
+      <input
+        id="search"
+        v-model="search"
+        class="input"
+        :placeholder="category === 'PRECON_DECK' ? 'Rechercher un deck préconstruit...' : 'Rechercher une édition...'"
+      />
+    </div>
 
     <!-- FILTRES POUR LES DECKS PRÉCONSTRUITS -->
     <div v-if="category === 'PRECON_DECK'" class="chips">
@@ -388,12 +391,12 @@ onMounted(() => {
         v-if="category === 'BOOSTER_BOX'"
         class="chip"
         :class="{ active: onlyProfitable }"
-        style="display: inline-flex; align-items: center; gap: 6px;"
         title="Afficher uniquement les boîtes dont l'EV (Expected Value) dépasse le prix d'achat"
         @click="onlyProfitable = !onlyProfitable"
       >
-        <span>⚡ EV &gt; Prix</span>
-        <span v-if="profitableCount > 0" class="badge" style="background: rgba(76, 183, 130, 0.2); color: #4cb782; padding: 1px 6px; font-size: 0.7rem;">{{ profitableCount }}</span>
+        <Papicon name="Sparkles" :size="15" />
+        <span>EV &gt; Prix</span>
+        <span v-if="profitableCount > 0" class="badge" style="background: rgba(52, 211, 153, 0.2); color: var(--up); padding: 1px 6px; font-size: 0.7rem;">{{ profitableCount }}</span>
       </button>
     </div>
 
@@ -404,7 +407,8 @@ onMounted(() => {
         title="Exporter la liste affichée au format CSV (compatible Excel)"
         @click="exportCsv"
       >
-        📥 Export CSV
+        <Papicon name="ArrowDownBox" :size="15" />
+        <span>Export CSV</span>
       </button>
       <button
         class="chip"
@@ -413,7 +417,8 @@ onMounted(() => {
         title="Affichage en tableau"
         @click="viewMode = 'table'"
       >
-        ☷ Tableau
+        <Papicon name="List" :size="15" />
+        <span>Tableau</span>
       </button>
       <button
         class="chip"
@@ -422,7 +427,8 @@ onMounted(() => {
         title="Affichage en grille de cartes"
         @click="viewMode = 'grid'"
       >
-        ⊞ Grille
+        <Papicon name="Grid" :size="15" />
+        <span>Grille</span>
       </button>
     </div>
   </div>
@@ -430,7 +436,10 @@ onMounted(() => {
   <!-- FILTRES AVANCÉS (Ères, Tranches de prix) -->
   <div class="advanced-filters card">
     <div class="filter-group">
-      <span class="filter-group-label">Ère / Format :</span>
+      <span class="filter-group-label" style="display:inline-flex; align-items:center; gap:6px;">
+        <Papicon name="Filter" :size="14" />
+        <span>Ère / Format :</span>
+      </span>
       <div class="chips filter-chips">
         <button
           v-for="e in ERAS"
@@ -446,7 +455,10 @@ onMounted(() => {
     </div>
 
     <div class="filter-group">
-      <span class="filter-group-label">Tranche de prix :</span>
+      <span class="filter-group-label" style="display:inline-flex; align-items:center; gap:6px;">
+        <Papicon name="PiggyBank" :size="14" />
+        <span>Tranche de prix :</span>
+      </span>
       <div class="chips filter-chips">
         <button
           v-for="p in PRICE_RANGES"
@@ -471,35 +483,35 @@ onMounted(() => {
           <th style="width: 48px; text-align: center;">Visuel</th>
           <th @click="sortBy('name')">
             {{ category === 'PRECON_DECK' ? 'Deck / Produit' : 'Édition' }}
-            <span v-if="sortKey === 'name'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+            <Papicon v-if="sortKey === 'name'" :name="sortDir === 1 ? 'ChevronUp' : 'ChevronDown'" :size="13" color="var(--accent-bright)" />
           </th>
           <th style="width: 125px;" @click="sortBy(category === 'PRECON_DECK' ? 'deckType' : 'type')">
             {{ category === 'PRECON_DECK' ? 'Catégorie' : 'Type' }}
-            <span v-if="sortKey === 'type' || sortKey === 'deckType'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+            <Papicon v-if="sortKey === 'type' || sortKey === 'deckType'" :name="sortDir === 1 ? 'ChevronUp' : 'ChevronDown'" :size="13" color="var(--accent-bright)" />
           </th>
           <th style="width: 125px;" @click="sortBy('releaseDate')">
-            Date de sortie <span v-if="sortKey === 'releaseDate'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+            Date de sortie <Papicon v-if="sortKey === 'releaseDate'" :name="sortDir === 1 ? 'ChevronUp' : 'ChevronDown'" :size="13" color="var(--accent-bright)" />
           </th>
           <th class="num" style="width: 105px;" @click="sortBy('price')">
-            Prix <span v-if="sortKey === 'price'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+            Prix <Papicon v-if="sortKey === 'price'" :name="sortDir === 1 ? 'ChevronUp' : 'ChevronDown'" :size="13" color="var(--accent-bright)" />
           </th>
           <th class="num" style="width: 85px;" @click="sortBy('stock')">
-            Stock <span v-if="sortKey === 'stock'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+            Stock <Papicon v-if="sortKey === 'stock'" :name="sortDir === 1 ? 'ChevronUp' : 'ChevronDown'" :size="13" color="var(--accent-bright)" />
           </th>
           <th class="num" style="width: 105px;" @click="sortBy('ev')">
-            EV <span v-if="sortKey === 'ev'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+            EV <Papicon v-if="sortKey === 'ev'" :name="sortDir === 1 ? 'ChevronUp' : 'ChevronDown'" :size="13" color="var(--accent-bright)" />
           </th>
           <th class="num" style="width: 105px;" @click="sortBy('evRatio')">
-            Ratio EV <span v-if="sortKey === 'evRatio'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+            Ratio EV <Papicon v-if="sortKey === 'evRatio'" :name="sortDir === 1 ? 'ChevronUp' : 'ChevronDown'" :size="13" color="var(--accent-bright)" />
           </th>
           <th class="num" style="width: 95px;" @click="sortBy('var1m')">
-            1 mois <span v-if="sortKey === 'var1m'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+            1 mois <Papicon v-if="sortKey === 'var1m'" :name="sortDir === 1 ? 'ChevronUp' : 'ChevronDown'" :size="13" color="var(--accent-bright)" />
           </th>
           <th class="num" style="width: 95px;" @click="sortBy('var3m')">
-            3 mois <span v-if="sortKey === 'var3m'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+            3 mois <Papicon v-if="sortKey === 'var3m'" :name="sortDir === 1 ? 'ChevronUp' : 'ChevronDown'" :size="13" color="var(--accent-bright)" />
           </th>
           <th class="num" style="width: 95px;" @click="sortBy('var6m')">
-            6 mois <span v-if="sortKey === 'var6m'" style="font-size:0.65rem; color:var(--accent);">{{ sortDir === 1 ? '▲' : '▼' }}</span>
+            6 mois <Papicon v-if="sortKey === 'var6m'" :name="sortDir === 1 ? 'ChevronUp' : 'ChevronDown'" :size="13" color="var(--accent-bright)" />
           </th>
           <th style="width: 110px; text-align: center;">Cardmarket</th>
         </tr>
@@ -533,7 +545,7 @@ onMounted(() => {
                 class="set-icon"
                 loading="lazy"
               />
-              <span v-else class="muted" style="font-size: 0.75rem;">📦</span>
+              <Papicon v-else name="Archive" :size="16" color="var(--muted)" />
             </div>
           </td>
           <td class="name-cell">
@@ -561,7 +573,7 @@ onMounted(() => {
           <td class="muted">{{ year(r.releaseDate) }}</td>
           <td class="num" style="font-weight: 700; font-size: 0.95rem;">{{ eur(r.price) }}</td>
           <td class="num" style="font-size: 0.85rem; font-weight: 600;">
-            <span v-if="r.stock != null" :style="{ color: r.stock > 0 ? '#4cb782' : 'var(--muted)' }">
+            <span v-if="r.stock != null" :style="{ color: r.stock > 0 ? 'var(--up)' : 'var(--muted)' }">
               {{ r.stock }}
             </span>
             <span v-else class="muted">-</span>
@@ -589,7 +601,8 @@ onMounted(() => {
           </td>
           <td style="text-align: center;">
             <a class="cm-link" :href="r.cardmarket" target="_blank" rel="noopener noreferrer" :title="`Voir ${r.name} sur Cardmarket`">
-              Cardmarket ↗
+              <span>Cardmarket</span>
+              <Papicon name="ExternalLink" :size="12" />
             </a>
           </td>
         </tr>
@@ -620,7 +633,7 @@ onMounted(() => {
             class="set-icon-large"
             loading="lazy"
           />
-          <span v-else style="font-size: 2rem;">📦</span>
+          <Papicon v-else name="Archive" :size="36" color="var(--muted)" />
         </div>
       </NuxtLink>
 
@@ -664,7 +677,7 @@ onMounted(() => {
           <div class="product-card-extra">
             <span>EV : <strong style="color: #7aa7ff;">{{ eur(r.ev) }}</strong></span>
             <span v-if="r.stock != null">
-              Stock : <strong :style="{ color: r.stock > 0 ? '#4cb782' : 'var(--muted)' }">{{ r.stock }}</strong>
+              Stock : <strong :style="{ color: r.stock > 0 ? 'var(--up)' : 'var(--muted)' }">{{ r.stock }}</strong>
             </span>
             <span>
               Ratio :
@@ -682,10 +695,12 @@ onMounted(() => {
 
           <div class="product-card-footer">
             <NuxtLink :to="`/products/${r.id}`" class="btn ghost" style="padding:5px 12px; font-size:0.8rem;">
-              Graphique
+              <Papicon name="Pie" :size="14" />
+              <span>Graphique</span>
             </NuxtLink>
             <a class="cm-link" :href="r.cardmarket" target="_blank" rel="noopener noreferrer">
-              Cardmarket ↗
+              <span>Cardmarket</span>
+              <Papicon name="ExternalLink" :size="12" />
             </a>
           </div>
         </div>
@@ -705,7 +720,8 @@ onMounted(() => {
       </span>
       <div style="display:flex; gap:8px;">
         <button class="btn ghost" style="padding:6px 12px; font-size:0.85rem;" @click="selectedIds = []">
-          Effacer
+          <Papicon name="Cross" :size="14" />
+          <span>Effacer</span>
         </button>
         <NuxtLink
           :to="`/compare?ids=${selectedIds.join(',')}`"
@@ -713,7 +729,8 @@ onMounted(() => {
           :class="{ disabled: selectedIds.length < 2 }"
           style="padding:6px 16px; font-size:0.85rem;"
         >
-          Comparer 📊
+          <Papicon name="Pillar" :size="15" />
+          <span>Comparer</span>
         </NuxtLink>
       </div>
     </div>

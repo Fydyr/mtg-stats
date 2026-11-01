@@ -94,9 +94,9 @@ function removeProduct(id: number) {
 
 // Duels populaires
 const POPULAR_DUELS = [
-  { label: '🔥 Modern Horizons 2 vs 3', ids: [283, 301] }, // fallback si IDs varient
-  { label: '⚡ Kamigawa vs Phyrexia', searchA: 'Kamigawa: Neon Dynasty', searchB: 'Phyrexia: All Will Be One' },
-  { label: '👑 Dominaria vs Ravnica Remastered', searchA: 'Dominaria Remastered', searchB: 'Ravnica Remastered' }
+  { label: 'Modern Horizons 2 vs 3', icon: 'Sparkles', ids: [283, 301], searchA: 'Modern Horizons 2', searchB: 'Modern Horizons 3' },
+  { label: 'Kamigawa vs Phyrexia', icon: 'Star', searchA: 'Kamigawa: Neon Dynasty', searchB: 'Phyrexia: All Will Be One' },
+  { label: 'Dominaria vs Ravnica Remastered', icon: 'Crown', searchA: 'Dominaria Remastered', searchB: 'Ravnica Remastered' }
 ]
 
 function launchDuelByName(nameA: string, nameB: string) {
@@ -232,12 +232,16 @@ useSeoMeta({
 
 <template>
   <div class="compare-page">
-    <NuxtLink to="/boxes" class="back">← Retour au catalogue des boîtes</NuxtLink>
+    <NuxtLink to="/boxes" class="back">
+      <Papicon name="ArrowLeft" :size="15" />
+      <span>Retour au catalogue des boîtes</span>
+    </NuxtLink>
 
     <section class="hero">
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-        <span class="badge" style="background: rgba(91, 141, 239, 0.15); color: #7aa7ff; border: 1px solid rgba(91, 141, 239, 0.3);">
-          ⚔️ Comparateur Face-à-Face
+        <span class="badge" style="background: rgba(99, 144, 240, 0.15); color: #8ab4ff; border: 1px solid rgba(99, 144, 240, 0.3);">
+          <Papicon name="Pillar" :size="13" />
+          <span>Comparateur Face-à-Face</span>
         </span>
         <span class="muted" style="font-size:0.85rem;">Jusqu'à 5 produits simultanés</span>
       </div>
@@ -251,20 +255,20 @@ useSeoMeta({
     <div class="card compare-selector-card">
       <div class="selector-header">
         <div style="flex: 1; min-width: 260px; position: relative;">
-          <label style="display: block; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+          <label style="display: block; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; font-weight: 600;">
             Ajouter un produit à la comparaison :
           </label>
-          <div style="position: relative;">
+          <div class="search-input-wrap" style="max-width: none;">
+            <Papicon name="Search" :size="17" class="search-icon" />
             <input
               ref="searchInputRef"
               v-model="searchQuery"
               type="text"
               class="input"
-              style="width: 100%; padding-left: 36px;"
+              style="width: 100%;"
               placeholder="Rechercher une boîte, un booster ou un deck (ex: Modern Horizons, Kamigawa, Fallout...)"
               @focus="isSearchOpen = true"
             />
-            <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); opacity: 0.6;">🔍</span>
           </div>
 
           <!-- Dropdown d'autocomplétion -->
@@ -296,11 +300,12 @@ useSeoMeta({
                   {{ item.category === 'PRECON_DECK' ? (item.deckType || 'Deck') : item.type }}
                 </div>
               </div>
-              <div style="font-weight: 700; font-size: 0.9rem; color: #4cb782;">
+              <div style="font-weight: 700; font-size: 0.9rem; color: #34d399;">
                 {{ eur(item.price) }}
               </div>
               <button class="btn ghost" style="padding: 4px 10px; font-size: 0.75rem;">
-                + Ajouter
+                <Papicon name="Plus" :size="13" />
+                <span>Ajouter</span>
               </button>
             </div>
           </div>
@@ -332,7 +337,7 @@ useSeoMeta({
             title="Retirer"
             @click="removeProduct(p.id)"
           >
-            ✕
+            <Papicon name="Cross" :size="13" />
           </button>
         </div>
       </div>
@@ -340,7 +345,9 @@ useSeoMeta({
 
     <!-- ÉTAT VIDE : MOINS DE 2 PRODUITS -->
     <div v-if="products.length < 2" class="card empty-compare-card">
-      <div style="font-size: 3rem; margin-bottom: 12px;">⚖️</div>
+      <div class="icon-box" style="width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 16px;">
+        <Papicon name="Pillar" :size="28" />
+      </div>
       <h3 style="margin-bottom: 8px;">Sélectionnez au moins 2 boîtes pour comparer</h3>
       <p class="muted" style="max-width: 500px; margin: 0 auto 20px; line-height: 1.5;">
         Tapez le nom d'un produit dans la barre ci-dessus pour l'ajouter, ou lancez un duel classique en 1 clic :
@@ -353,7 +360,8 @@ useSeoMeta({
           class="btn ghost duel-btn"
           @click="launchDuelByName(duel.searchA || '', duel.searchB || '')"
         >
-          {{ duel.label }}
+          <Papicon :name="duel.icon" :size="15" />
+          <span>{{ duel.label }}</span>
         </button>
       </div>
     </div>
@@ -433,8 +441,9 @@ useSeoMeta({
                   <div>
                     <NuxtLink class="name" :to="`/products/${p.id}`">{{ p.name }}</NuxtLink>
                     <div v-if="p.cardmarket" style="font-size: 0.72rem;">
-                      <a :href="p.cardmarket" target="_blank" rel="noopener noreferrer" class="muted" style="text-decoration: underline;">
-                        Cardmarket ↗
+                      <a :href="p.cardmarket" target="_blank" rel="noopener noreferrer" class="muted" style="text-decoration: underline; display:inline-flex; align-items:center; gap:3px;">
+                        <span>Cardmarket</span>
+                        <Papicon name="ExternalLink" :size="11" />
                       </a>
                     </div>
                   </div>
@@ -472,7 +481,7 @@ useSeoMeta({
                 </span>
                 <span v-else class="muted">-</span>
               </td>
-              <td class="num" style="color: #7aa7ff; font-weight: 600;">
+              <td class="num" style="color: #8ab4ff; font-weight: 600;">
                 {{ eur(p.lastEv) }}
               </td>
               <td class="num">
@@ -485,17 +494,18 @@ useSeoMeta({
                 </span>
                 <span v-else class="muted">-</span>
               </td>
-              <td class="num" :style="{ color: p.stock && p.stock > 0 ? '#4cb782' : 'var(--muted)' }">
+              <td class="num" :style="{ color: p.stock && p.stock > 0 ? '#34d399' : 'var(--muted)' }">
                 {{ p.stock ?? '-' }}
               </td>
               <td style="text-align: center;">
                 <button
                   class="btn ghost"
-                  style="padding: 4px 8px; font-size: 0.75rem; border-color: rgba(229, 96, 79, 0.4); color: #e5604f;"
+                  style="padding: 4px 10px; font-size: 0.75rem; border-color: rgba(248, 113, 113, 0.35); color: var(--down);"
                   title="Retirer de la comparaison"
                   @click="removeProduct(p.id)"
                 >
-                  ✕ Retirer
+                  <Papicon name="Trash" :size="13" />
+                  <span>Retirer</span>
                 </button>
               </td>
             </tr>

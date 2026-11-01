@@ -19,7 +19,10 @@ useSeoMeta({
 
 <template>
   <div class="legal-page">
-    <NuxtLink to="/" class="back">← Retour à l'accueil</NuxtLink>
+    <NuxtLink to="/" class="back">
+      <Papicon name="ArrowLeft" :size="15" />
+      <span>Retour à l'accueil</span>
+    </NuxtLink>
 
     <section class="hero" style="margin-bottom: 24px;">
       <h1>Mentions Légales</h1>
@@ -33,7 +36,7 @@ useSeoMeta({
       <!-- 1. IDENTIFICATION DE L'ÉDITEUR -->
       <div class="card legal-card">
         <div class="legal-card-header">
-          <span class="legal-icon">👤</span>
+          <span class="icon-box"><Papicon name="User" :size="18" /></span>
           <h2>Identification de l'éditeur</h2>
         </div>
         <div class="legal-content">
@@ -41,7 +44,13 @@ useSeoMeta({
           <ul>
             <li><strong>Nom & prénom :</strong> Enzo Fournier</li>
             <li><strong>Activité :</strong> Développeur Web & Créateur de projets</li>
-            <li><strong>Portfolio officiel :</strong> <a href="https://enzo-f.aeroliths.fr" target="_blank" rel="noopener noreferrer">https://enzo-f.aeroliths.fr ↗</a></li>
+            <li>
+              <strong>Portfolio officiel :</strong>
+              <a href="https://enzo-f.aeroliths.fr" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:4px;">
+                <span>https://enzo-f.aeroliths.fr</span>
+                <Papicon name="ExternalLink" :size="12" />
+              </a>
+            </li>
             <li><strong>Email de contact :</strong> <a href="mailto:enzofournier.contact@gmail.com">enzofournier.contact@gmail.com</a></li>
             <li><strong>Directeur de la publication :</strong> Enzo Fournier</li>
           </ul>
@@ -51,7 +60,7 @@ useSeoMeta({
       <!-- 2. HÉBERGEMENT -->
       <div class="card legal-card">
         <div class="legal-card-header">
-          <span class="legal-icon">🖥️</span>
+          <span class="icon-box"><Papicon name="Globe" :size="18" /></span>
           <h2>Hébergement du site</h2>
         </div>
         <div class="legal-content">
@@ -59,7 +68,13 @@ useSeoMeta({
           <ul>
             <li><strong>Hébergeur :</strong> IONOS SARL</li>
             <li><strong>Adresse postale :</strong> 7 place de la Gare, 57200 Sarreguemines, France</li>
-            <li><strong>Site officiel :</strong> <a href="https://www.ionos.fr" target="_blank" rel="noopener noreferrer">https://www.ionos.fr ↗</a></li>
+            <li>
+              <strong>Site officiel :</strong>
+              <a href="https://www.ionos.fr" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:4px;">
+                <span>https://www.ionos.fr</span>
+                <Papicon name="ExternalLink" :size="12" />
+              </a>
+            </li>
           </ul>
         </div>
       </div>
@@ -67,7 +82,7 @@ useSeoMeta({
       <!-- 3. PROPRIÉTÉ INTELLECTUELLE & AVERTISSEMENT MTG -->
       <div class="card legal-card">
         <div class="legal-card-header">
-          <span class="legal-icon">⚖️</span>
+          <span class="icon-box"><Papicon name="Pillar" :size="18" /></span>
           <h2>Propriété intellectuelle & Droits</h2>
         </div>
         <div class="legal-content">
@@ -90,7 +105,7 @@ useSeoMeta({
       <!-- 4. SOURCES DES DONNÉES -->
       <div class="card legal-card">
         <div class="legal-card-header">
-          <span class="legal-icon">📊</span>
+          <span class="icon-box"><Papicon name="Pie" :size="18" /></span>
           <h2>Origine des données & Cotations</h2>
         </div>
         <div class="legal-content">
@@ -106,7 +121,9 @@ useSeoMeta({
       <!-- 5. PROTECTION DES DONNÉES PERSONNELLES (RGPD) -->
       <div class="card legal-card" style="grid-column: 1 / -1;">
         <div class="legal-card-header">
-          <span class="legal-icon">🔒</span>
+          <span class="icon-box" style="background: rgba(52, 211, 153, 0.14); color: #34d399; border-color: rgba(52, 211, 153, 0.25);">
+            <Papicon name="Lock" :size="18" />
+          </span>
           <h2>Protection des données personnelles (RGPD)</h2>
         </div>
         <div class="legal-content">

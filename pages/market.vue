@@ -83,26 +83,26 @@ useSeoMeta({
   <!-- CARTES MACRO DU MARCHÉ -->
   <section class="stats">
     <div class="card stat">
-      <div class="label">Prix moyen d'une boîte</div>
-      <div class="value" style="color: var(--accent);">{{ eur(data?.marketTrend?.avgPrice) }}</div>
+      <div class="label"><Papicon name="PiggyBank" :size="14" /> <span>Prix moyen d'une boîte</span></div>
+      <div class="value" style="color: var(--accent-hover);">{{ eur(data?.marketTrend?.avgPrice) }}</div>
       <div class="sub">{{ data?.marketTrend?.totalProducts }} boîtes actives suivies</div>
     </div>
     <div class="card stat">
-      <div class="label">Tendance marché (1 mois)</div>
+      <div class="label"><Papicon name="Pie" :size="14" /> <span>Tendance marché (1 mois)</span></div>
       <div class="value" :class="cls(data?.marketTrend?.avgVar1m)">
         {{ pct(data?.marketTrend?.avgVar1m) }}
       </div>
       <div class="sub">Variation globale mensuelle</div>
     </div>
     <div class="card stat">
-      <div class="label">Tendance marché (3 mois)</div>
+      <div class="label"><Papicon name="Calendar" :size="14" /> <span>Tendance marché (3 mois)</span></div>
       <div class="value" :class="cls(data?.marketTrend?.avgVar3m)">
         {{ pct(data?.marketTrend?.avgVar3m) }}
       </div>
       <div class="sub">Variation moyenne trimestrielle</div>
     </div>
     <div class="card stat">
-      <div class="label">Tendance marché (6 mois)</div>
+      <div class="label"><Papicon name="Clock" :size="14" /> <span>Tendance marché (6 mois)</span></div>
       <div class="value" :class="cls(data?.marketTrend?.avgVar6m)">
         {{ pct(data?.marketTrend?.avgVar6m) }}
       </div>
@@ -112,18 +112,21 @@ useSeoMeta({
 
   <!-- PERFORMANCE PAR TYPE DE BOÎTE -->
   <div class="card" style="margin-bottom: 28px;">
-    <h3 style="margin-bottom: 16px;">Performance par catégorie de booster</h3>
+    <h3 style="margin-bottom: 16px; display:flex; align-items:center; gap:8px;">
+      <Papicon name="Archive" :size="18" color="var(--accent-hover)" />
+      <span>Performance par catégorie de booster</span>
+    </h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
       <div
         v-for="cat in data?.byType ?? []"
         :key="cat.type"
-        style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 8px; padding: 14px;"
+        style="background: rgba(255, 255, 255, 0.025); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px;"
       >
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
           <span class="badge" :class="`badge-${cat.type.toLowerCase()}`">{{ cat.type }}</span>
           <span class="muted" style="font-size: 0.75rem;">{{ cat.count }} boîtes</span>
         </div>
-        <div style="font-size: 1.25rem; font-weight: 700; margin-bottom: 8px;">
+        <div style="font-family: 'Outfit', sans-serif; font-size: 1.35rem; font-weight: 800; margin-bottom: 8px;">
           {{ eur(cat.avgPrice) }}
           <span style="font-size: 0.75rem; color: var(--muted); font-weight: 400;">(moy.)</span>
         </div>
@@ -142,28 +145,34 @@ useSeoMeta({
   <!-- PALMARÈS TOP 10 (MOVERS & SHAKERS) -->
   <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 18px;">
-      <h3 style="margin: 0;">Palmarès du mois (Top 10)</h3>
+      <h3 style="margin: 0; display:flex; align-items:center; gap:8px;">
+        <Papicon name="Crown" :size="18" color="#f5a623" />
+        <span>Palmarès du mois (Top 10)</span>
+      </h3>
       <div class="chips">
         <button
           class="chip"
           :class="{ active: activeTab === 'gainers' }"
           @click="activeTab = 'gainers'"
         >
-          🚀 Plus fortes hausses
+          <Papicon name="ArrowRightUp" :size="15" />
+          <span>Plus fortes hausses</span>
         </button>
         <button
           class="chip"
           :class="{ active: activeTab === 'losers' }"
           @click="activeTab = 'losers'"
         >
-          📉 Plus fortes baisses
+          <Papicon name="ArrowRightDown" :size="15" />
+          <span>Plus fortes baisses</span>
         </button>
         <button
           class="chip"
           :class="{ active: activeTab === 'ev' }"
           @click="activeTab = 'ev'"
         >
-          ⚡ Meilleures opportunités EV
+          <Papicon name="Sparkles" :size="15" />
+          <span>Meilleures opportunités EV</span>
         </button>
       </div>
     </div>

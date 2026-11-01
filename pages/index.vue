@@ -7,6 +7,7 @@ type Item = {
   deckType?: 'COMMANDER' | 'CHALLENGER' | 'STARTER' | 'OTHER' | null
   releaseDate: string | null
   cardmarket: string
+  imageUrl?: string | null
   price: number | null
   ev: number | null
   previous: number | null
@@ -72,7 +73,6 @@ const top5Gainers = computed(() => {
       .slice(0, 5)
   }
 
-  // En mode "Tous" : assurer l'intégration des Boîtes, Boosters et Decks
   const bestBoxes = [...withVar.value].filter((i) => i.category === 'BOOSTER_BOX').sort((a, b) => b.var1m! - a.var1m!)
   const bestBoosters = [...withVar.value].filter((i) => i.category === 'SINGLE_BOOSTER').sort((a, b) => b.var1m! - a.var1m!)
   const bestDecks = [...withVar.value].filter((i) => i.category === 'PRECON_DECK').sort((a, b) => b.var1m! - a.var1m!)
@@ -87,7 +87,6 @@ const top5Gainers = computed(() => {
     }
   }
 
-  // Sélectionne les meilleurs de chaque catégorie
   addUnique(bestBoxes[0])
   addUnique(bestBoosters[0])
   addUnique(bestDecks[0])
@@ -95,7 +94,6 @@ const top5Gainers = computed(() => {
   addUnique(bestBoosters[1])
   addUnique(bestDecks[1])
 
-  // Complète si besoin avec les meilleures variations générales
   if (mixed.length < 5) {
     const generalTop = [...withVar.value].sort((a, b) => b.var1m! - a.var1m!)
     for (const g of generalTop) {
@@ -118,7 +116,6 @@ const top5Losers = computed(() => {
       .slice(0, 5)
   }
 
-  // En mode "Tous" : assurer l'intégration des Boîtes, Boosters et Decks
   const worstBoxes = [...losersPool].filter((i) => i.category === 'BOOSTER_BOX').sort((a, b) => a.var1m! - b.var1m!)
   const worstBoosters = [...losersPool].filter((i) => i.category === 'SINGLE_BOOSTER').sort((a, b) => a.var1m! - b.var1m!)
   const worstDecks = [...losersPool].filter((i) => i.category === 'PRECON_DECK').sort((a, b) => a.var1m! - b.var1m!)
@@ -153,10 +150,10 @@ const top5Losers = computed(() => {
 
 // Titre dynamique de la carte EV selon la catégorie sélectionnée
 const evHeaderTitle = computed(() => {
-  if (activeHighlightCategory.value === 'SINGLE_BOOSTER') return '💎 Boosters rentables à l\'ouverture'
-  if (activeHighlightCategory.value === 'PRECON_DECK') return '💎 Decks rentables à l\'ouverture'
-  if (activeHighlightCategory.value === 'BOOSTER_BOX') return '💎 Boîtes rentables à l\'ouverture'
-  return '💎 Scellés rentables à l\'ouverture'
+  if (activeHighlightCategory.value === 'SINGLE_BOOSTER') return "Boosters rentables à l'ouverture"
+  if (activeHighlightCategory.value === 'PRECON_DECK') return "Decks rentables à l'ouverture"
+  if (activeHighlightCategory.value === 'BOOSTER_BOX') return "Boîtes rentables à l'ouverture"
+  return "Scellés rentables à l'ouverture"
 })
 
 // Top 5 des opportunités EV > Prix filtrées selon la catégorie active
@@ -168,7 +165,6 @@ const top5EvOpportunities = computed(() => {
       .slice(0, 5)
   }
 
-  // En mode "Tous les scellés" : intégrer équitablement Boîtes et Boosters rentables
   const bestBoxes = [...items.value]
     .filter((i) => i.category === 'BOOSTER_BOX' && i.evRatio != null && i.evRatio >= 100)
     .sort((a, b) => b.evRatio! - a.evRatio!)
@@ -228,15 +224,17 @@ useSeoMeta({
   <div class="home-page">
     <!-- HERO PRINCIPAL -->
     <section class="hero">
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
-        <span class="badge" style="background: rgba(91, 141, 239, 0.15); color: #7aa7ff; border: 1px solid rgba(91, 141, 239, 0.3); font-size: 0.8rem; padding: 4px 10px;">
-          ✦ Observatoire Scellé MTG
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+        <span class="badge" style="background: rgba(76, 130, 251, 0.15); color: #7aa7ff; border: 1px solid rgba(76, 130, 251, 0.3); font-size: 0.8rem; padding: 5px 12px; border-radius: 999px;">
+          <Papicon name="Sparkles" :size="14" />
+          <span>Observatoire Scellé MTG</span>
         </span>
-        <span v-if="data?.month" class="muted" style="font-size:0.85rem;">
-          Relevé de {{ monthLabel(data.month) }}
+        <span v-if="data?.month" class="muted" style="font-size:0.85rem; display:inline-flex; align-items:center; gap:6px;">
+          <Papicon name="Calendar" :size="14" />
+          <span>Relevé de {{ monthLabel(data.month) }}</span>
         </span>
       </div>
-      <h1>Cote & cours des produits scellés Magic</h1>
+      <h1>Cote &amp; cours des produits scellés Magic</h1>
       <p>
         Suivez l'évolution mensuelle des prix, calculez l'Expected Value (EV) et comparez la rentabilité des
         boîtes de boosters, boosters unitaires et decks préconstruits sur le marché européen.
@@ -246,17 +244,26 @@ useSeoMeta({
     <!-- STATS MACRO -->
     <section class="stats">
       <div class="card stat">
-        <div class="label">Produits indexés</div>
+        <div class="label">
+          <span>Produits indexés</span>
+          <Papicon name="Archive" :size="16" color="#7aa7ff" />
+        </div>
         <div class="value">{{ counts.TOTAL }}</div>
-        <div class="sub">456 boîtes · 627 boosters · 919 decks</div>
+        <div class="sub">{{ counts.BOOSTER_BOX }} boîtes · {{ counts.SINGLE_BOOSTER }} boosters · {{ counts.PRECON_DECK }} decks</div>
       </div>
       <div class="card stat">
-        <div class="label">Variation moyenne (1 mois)</div>
+        <div class="label">
+          <span>Variation moyenne (1 mois)</span>
+          <Papicon name="Pie" :size="16" color="#949bb0" />
+        </div>
         <div class="value" :class="cls(avgVar)">{{ pct(avgVar) }}</div>
         <div class="sub">{{ withVar.length }} produits avec historique</div>
       </div>
       <NuxtLink :to="topGainer ? `/products/${topGainer.id}` : '#'" class="card stat stat-link">
-        <div class="label">Plus forte hausse</div>
+        <div class="label">
+          <span>Plus forte hausse</span>
+          <Papicon name="ArrowRightUp" :size="16" color="var(--up)" />
+        </div>
         <div class="value up">{{ pct(topGainer?.var1m ?? null) }}</div>
         <div class="sub">
           {{ topGainer?.name ?? '-' }}
@@ -264,7 +271,10 @@ useSeoMeta({
         </div>
       </NuxtLink>
       <NuxtLink :to="topDrop ? `/products/${topDrop.id}` : '#'" class="card stat stat-link">
-        <div class="label">Plus forte baisse</div>
+        <div class="label">
+          <span>Plus forte baisse</span>
+          <Papicon name="ArrowRightDown" :size="16" color="var(--down)" />
+        </div>
         <div class="value down">{{ pct(topDrop?.var1m ?? null) }}</div>
         <div class="sub">
           {{ topDrop?.name ?? '-' }}
@@ -272,7 +282,10 @@ useSeoMeta({
         </div>
       </NuxtLink>
       <NuxtLink :to="topEv ? `/products/${topEv.id}` : '#'" class="card stat stat-link">
-        <div class="label">Meilleur ratio EV (Boîte)</div>
+        <div class="label">
+          <span>Meilleur ratio EV (Boîte)</span>
+          <Papicon name="Sparkles" :size="16" color="#7aa7ff" />
+        </div>
         <div class="value" style="color:#7aa7ff;">{{ topEv?.evRatio != null ? `${topEv.evRatio} %` : '-' }}</div>
         <div class="sub">{{ topEv?.name ?? '-' }}</div>
       </NuxtLink>
@@ -284,40 +297,55 @@ useSeoMeta({
       <div class="portal-grid">
         <!-- CARTE BOÎTES -->
         <NuxtLink to="/boxes" class="portal-card">
-          <div class="portal-icon">📦</div>
+          <div class="portal-icon-box">
+            <Papicon name="Archive" :size="24" />
+          </div>
           <div class="portal-badge">{{ counts.BOOSTER_BOX }} boîtes</div>
           <h3>Boîtes &amp; Bundles</h3>
           <p>
             Historique complet des boîtes de boosters scellées et bundles (Draft, Set, Play, Collector, Bundles). Suivi des prix, EV et rentabilité à l'ouverture.
           </p>
           <div class="portal-footer">
-            <span class="portal-action">Consulter les boîtes →</span>
+            <span class="portal-action">
+              <span>Consulter les boîtes</span>
+              <Papicon name="ArrowRight" :size="16" />
+            </span>
           </div>
         </NuxtLink>
 
         <!-- CARTE BOOSTERS -->
         <NuxtLink to="/boosters" class="portal-card">
-          <div class="portal-icon">🃏</div>
+          <div class="portal-icon-box purple">
+            <Papicon name="Card" :size="24" />
+          </div>
           <div class="portal-badge">{{ counts.SINGLE_BOOSTER }} boosters</div>
           <h3>Boosters individuels</h3>
           <p>
             Cotes et prix des paquets de boosters à l'unité. Indispensable pour estimer vos packs isolés, reliques et drafts maison.
           </p>
           <div class="portal-footer">
-            <span class="portal-action">Consulter les boosters →</span>
+            <span class="portal-action">
+              <span>Consulter les boosters</span>
+              <Papicon name="ArrowRight" :size="16" />
+            </span>
           </div>
         </NuxtLink>
 
         <!-- CARTE DECKS -->
         <NuxtLink to="/decks" class="portal-card">
-          <div class="portal-icon">⚔️</div>
+          <div class="portal-icon-box amber">
+            <Papicon name="Crown" :size="24" />
+          </div>
           <div class="portal-badge">{{ counts.PRECON_DECK }} decks</div>
           <h3>Decks préconstruits</h3>
           <p>
             Suivi des cotes pour les decks officiels prêts à jouer : Commander, Challenger Decks, Kits d'initiation et Starter sets.
           </p>
           <div class="portal-footer">
-            <span class="portal-action">Consulter les decks →</span>
+            <span class="portal-action">
+              <span>Consulter les decks</span>
+              <Papicon name="ArrowRight" :size="16" />
+            </span>
           </div>
         </NuxtLink>
       </div>
@@ -337,28 +365,32 @@ useSeoMeta({
           :class="{ active: activeHighlightCategory === 'ALL' }"
           @click="activeHighlightCategory = 'ALL'"
         >
-          Tous les scellés
+          <Papicon name="Grid" :size="15" />
+          <span>Tous les scellés</span>
         </button>
         <button
           class="chip"
           :class="{ active: activeHighlightCategory === 'BOOSTER_BOX' }"
           @click="activeHighlightCategory = 'BOOSTER_BOX'"
         >
-          📦 Boîtes
+          <Papicon name="Archive" :size="15" />
+          <span>Boîtes</span>
         </button>
         <button
           class="chip"
           :class="{ active: activeHighlightCategory === 'SINGLE_BOOSTER' }"
           @click="activeHighlightCategory = 'SINGLE_BOOSTER'"
         >
-          🃏 Boosters
+          <Papicon name="Card" :size="15" />
+          <span>Boosters</span>
         </button>
         <button
           class="chip"
           :class="{ active: activeHighlightCategory === 'PRECON_DECK' }"
           @click="activeHighlightCategory = 'PRECON_DECK'"
         >
-          ⚔️ Decks
+          <Papicon name="Crown" :size="15" />
+          <span>Decks</span>
         </button>
       </div>
     </div>
@@ -368,7 +400,12 @@ useSeoMeta({
       <!-- TOP HAUSSES -->
       <div class="card highlight-card">
         <div class="highlight-header">
-          <h3 style="margin:0; font-size:1.15rem;">🔥 Plus fortes hausses</h3>
+          <h3 style="margin:0; font-size:1.12rem; display:inline-flex; align-items:center; gap:9px;">
+            <span class="icon-box up" style="width:30px; height:30px; border-radius:9px;">
+              <Papicon name="ArrowRightUp" :size="16" />
+            </span>
+            <span>Plus fortes hausses</span>
+          </h3>
           <span class="muted" style="font-size:0.8rem;">1 mois</span>
         </div>
         <div class="mini-list">
@@ -394,23 +431,26 @@ useSeoMeta({
                   <span
                     v-if="item.category === 'PRECON_DECK'"
                     class="badge"
-                    style="background: rgba(245, 166, 35, 0.15); color: #f5a623; border: 1px solid rgba(245, 166, 35, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                    style="background: rgba(251, 191, 36, 0.14); color: #fcd34d; border: 1px solid rgba(251, 191, 36, 0.28); font-size: 0.65rem; padding: 1px 6px;"
                   >
-                    ⚔️ {{ item.deckType || 'Deck' }}
+                    <Papicon name="Crown" :size="11" />
+                    <span>{{ item.deckType || 'Deck' }}</span>
                   </span>
                   <span
                     v-else-if="item.category === 'SINGLE_BOOSTER'"
                     class="badge"
-                    style="background: rgba(178, 102, 255, 0.15); color: #b266ff; border: 1px solid rgba(178, 102, 255, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                    style="background: rgba(192, 132, 252, 0.14); color: #d8b4fe; border: 1px solid rgba(192, 132, 252, 0.28); font-size: 0.65rem; padding: 1px 6px;"
                   >
-                    🃏 Booster
+                    <Papicon name="Card" :size="11" />
+                    <span>Booster</span>
                   </span>
                   <span
                     v-else
                     class="badge"
-                    style="background: rgba(91, 141, 239, 0.15); color: #7aa7ff; border: 1px solid rgba(91, 141, 239, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                    style="background: rgba(76, 130, 251, 0.14); color: #7aa7ff; border: 1px solid rgba(76, 130, 251, 0.28); font-size: 0.65rem; padding: 1px 6px;"
                   >
-                    📦 Boîte {{ item.type }}
+                    <Papicon name="Archive" :size="11" />
+                    <span>Boîte {{ item.type }}</span>
                   </span>
                 </div>
               </div>
@@ -426,7 +466,12 @@ useSeoMeta({
       <!-- TOP BAISSES -->
       <div class="card highlight-card">
         <div class="highlight-header">
-          <h3 style="margin:0; font-size:1.15rem;">📉 Plus fortes baisses</h3>
+          <h3 style="margin:0; font-size:1.12rem; display:inline-flex; align-items:center; gap:9px;">
+            <span class="icon-box down" style="width:30px; height:30px; border-radius:9px;">
+              <Papicon name="ArrowRightDown" :size="16" />
+            </span>
+            <span>Plus fortes baisses</span>
+          </h3>
           <span class="muted" style="font-size:0.8rem;">1 mois</span>
         </div>
         <div class="mini-list">
@@ -452,23 +497,26 @@ useSeoMeta({
                   <span
                     v-if="item.category === 'PRECON_DECK'"
                     class="badge"
-                    style="background: rgba(245, 166, 35, 0.15); color: #f5a623; border: 1px solid rgba(245, 166, 35, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                    style="background: rgba(251, 191, 36, 0.14); color: #fcd34d; border: 1px solid rgba(251, 191, 36, 0.28); font-size: 0.65rem; padding: 1px 6px;"
                   >
-                    ⚔️ {{ item.deckType || 'Deck' }}
+                    <Papicon name="Crown" :size="11" />
+                    <span>{{ item.deckType || 'Deck' }}</span>
                   </span>
                   <span
                     v-else-if="item.category === 'SINGLE_BOOSTER'"
                     class="badge"
-                    style="background: rgba(178, 102, 255, 0.15); color: #b266ff; border: 1px solid rgba(178, 102, 255, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                    style="background: rgba(192, 132, 252, 0.14); color: #d8b4fe; border: 1px solid rgba(192, 132, 252, 0.28); font-size: 0.65rem; padding: 1px 6px;"
                   >
-                    🃏 Booster
+                    <Papicon name="Card" :size="11" />
+                    <span>Booster</span>
                   </span>
                   <span
                     v-else
                     class="badge"
-                    style="background: rgba(91, 141, 239, 0.15); color: #7aa7ff; border: 1px solid rgba(91, 141, 239, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                    style="background: rgba(76, 130, 251, 0.14); color: #7aa7ff; border: 1px solid rgba(76, 130, 251, 0.28); font-size: 0.65rem; padding: 1px 6px;"
                   >
-                    📦 Boîte {{ item.type }}
+                    <Papicon name="Archive" :size="11" />
+                    <span>Boîte {{ item.type }}</span>
                   </span>
                 </div>
               </div>
@@ -487,8 +535,13 @@ useSeoMeta({
       <!-- OPPORTUNITÉS EV > PRIX -->
       <div class="card highlight-card">
         <div class="highlight-header">
-          <h3 style="margin:0; font-size:1.15rem;">{{ evHeaderTitle }}</h3>
-          <span class="badge" style="background: rgba(76, 183, 130, 0.2); color: #4cb782;">EV &gt; Prix</span>
+          <h3 style="margin:0; font-size:1.12rem; display:inline-flex; align-items:center; gap:9px;">
+            <span class="icon-box" style="width:30px; height:30px; border-radius:9px;">
+              <Papicon name="PiggyBank" :size="16" />
+            </span>
+            <span>{{ evHeaderTitle }}</span>
+          </h3>
+          <span class="badge" style="background: rgba(52, 211, 153, 0.16); color: var(--up);">EV &gt; Prix</span>
         </div>
         <div class="mini-list">
           <div v-for="item in top5EvOpportunities" :key="item.id" class="mini-row">
@@ -513,23 +566,26 @@ useSeoMeta({
                   <span
                     v-if="item.category === 'PRECON_DECK'"
                     class="badge"
-                    style="background: rgba(245, 166, 35, 0.15); color: #f5a623; border: 1px solid rgba(245, 166, 35, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                    style="background: rgba(251, 191, 36, 0.14); color: #fcd34d; border: 1px solid rgba(251, 191, 36, 0.28); font-size: 0.65rem; padding: 1px 6px;"
                   >
-                    ⚔️ {{ item.deckType || 'Deck' }}
+                    <Papicon name="Crown" :size="11" />
+                    <span>{{ item.deckType || 'Deck' }}</span>
                   </span>
                   <span
                     v-else-if="item.category === 'SINGLE_BOOSTER'"
                     class="badge"
-                    style="background: rgba(178, 102, 255, 0.15); color: #b266ff; border: 1px solid rgba(178, 102, 255, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                    style="background: rgba(192, 132, 252, 0.14); color: #d8b4fe; border: 1px solid rgba(192, 132, 252, 0.28); font-size: 0.65rem; padding: 1px 6px;"
                   >
-                    🃏 Booster
+                    <Papicon name="Card" :size="11" />
+                    <span>Booster</span>
                   </span>
                   <span
                     v-else
                     class="badge"
-                    style="background: rgba(91, 141, 239, 0.15); color: #7aa7ff; border: 1px solid rgba(91, 141, 239, 0.3); font-size: 0.65rem; padding: 1px 6px;"
+                    style="background: rgba(76, 130, 251, 0.14); color: #7aa7ff; border: 1px solid rgba(76, 130, 251, 0.28); font-size: 0.65rem; padding: 1px 6px;"
                   >
-                    📦 Boîte {{ item.type }}
+                    <Papicon name="Archive" :size="11" />
+                    <span>Boîte {{ item.type }}</span>
                   </span>
                 </div>
               </div>
@@ -560,14 +616,20 @@ useSeoMeta({
     <!-- BANNIÈRE TENDANCES MARCHÉ -->
     <section class="market-cta card">
       <div class="market-cta-content">
-        <div>
-          <h3 style="margin:0 0 6px 0; font-size:1.25rem;">📊 Analyse macro & distribution des prix</h3>
-          <p class="muted" style="margin:0; line-height:1.5;">
-            Visualisez les indices de marché, la distribution des prix par tranche et les plus gros volumes de variation dans notre section dédiée.
-          </p>
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div class="icon-box" style="width:48px; height:48px; border-radius:14px;">
+            <Papicon name="Pie" :size="24" />
+          </div>
+          <div>
+            <h3 style="margin:0 0 6px 0; font-size:1.25rem;">Analyse macro &amp; distribution des prix</h3>
+            <p class="muted" style="margin:0; line-height:1.5;">
+              Visualisez les indices de marché, la distribution des prix par tranche et les plus gros volumes de variation dans notre section dédiée.
+            </p>
+          </div>
         </div>
         <NuxtLink to="/market" class="btn" style="white-space:nowrap; padding: 10px 22px;">
-          Voir les Tendances Marché →
+          <span>Voir les Tendances Marché</span>
+          <Papicon name="ArrowRight" :size="16" />
         </NuxtLink>
       </div>
     </section>
@@ -582,10 +644,10 @@ useSeoMeta({
 }
 
 .section-title {
-  font-size: 1.35rem;
+  font-size: 1.4rem;
   font-weight: 700;
   margin: 0 0 16px 0;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .portal-grid {
@@ -597,43 +659,64 @@ useSeoMeta({
 .portal-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   padding: 24px;
   display: flex;
   flex-direction: column;
-  transition: all .2s ease;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   text-decoration: none;
   color: var(--text);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .portal-card:hover {
   background: var(--card-hover);
-  border-color: var(--accent);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  border-color: rgba(76, 130, 251, 0.5);
+  transform: translateY(-3px);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.38), 0 0 24px rgba(76, 130, 251, 0.12);
 }
 
-.portal-icon {
-  font-size: 2.2rem;
-  margin-bottom: 12px;
+.portal-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent-bright);
+  border: 1px solid rgba(76, 130, 251, 0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.portal-icon-box.purple {
+  background: rgba(192, 132, 252, 0.14);
+  color: #d8b4fe;
+  border-color: rgba(192, 132, 252, 0.3);
+}
+
+.portal-icon-box.amber {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fcd34d;
+  border-color: rgba(251, 191, 36, 0.3);
 }
 
 .portal-badge {
   position: absolute;
-  top: 20px;
-  right: 20px;
+  top: 22px;
+  right: 22px;
   font-size: 0.75rem;
   font-weight: 700;
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--muted);
   border: 1px solid var(--border);
 }
 
 .portal-card h3 {
-  font-size: 1.25rem;
+  font-size: 1.28rem;
   font-weight: 700;
   margin: 0 0 8px 0;
   color: var(--text);
@@ -642,7 +725,7 @@ useSeoMeta({
 .portal-card p {
   color: var(--muted);
   font-size: 0.9rem;
-  line-height: 1.5;
+  line-height: 1.55;
   margin: 0 0 20px 0;
   flex: 1;
 }
@@ -654,14 +737,15 @@ useSeoMeta({
 .portal-action {
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-bright);
   display: inline-flex;
   align-items: center;
-  transition: gap .15s ease;
+  gap: 6px;
+  transition: gap 0.15s ease;
 }
 
 .portal-card:hover .portal-action {
-  color: #7aa7ff;
+  gap: 10px;
 }
 
 .highlights-grid {
@@ -729,7 +813,7 @@ useSeoMeta({
 }
 
 .mini-row-title:hover {
-  color: var(--accent);
+  color: var(--accent-bright);
 }
 
 .mini-row-numbers {
@@ -741,8 +825,8 @@ useSeoMeta({
 }
 
 .market-cta {
-  background: linear-gradient(135deg, rgba(26, 27, 30, 0.9) 0%, rgba(91, 141, 239, 0.1) 100%);
-  border: 1px solid rgba(91, 141, 239, 0.3);
+  background: linear-gradient(135deg, rgba(20, 24, 34, 0.95) 0%, rgba(76, 130, 251, 0.12) 100%);
+  border: 1px solid rgba(76, 130, 251, 0.3);
   padding: 24px;
 }
 

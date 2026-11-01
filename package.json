@@ -20,6 +20,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@getpapillon/papicons": "^0.2.3",
     "@prisma/client": "^6.4.1",
     "chart.js": "^4.4.7",
     "croner": "^10.0.1",
