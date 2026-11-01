@@ -360,6 +360,225 @@ const compareSetIdsUrl = computed(() => {
   return `/compare?ids=${ids.join(',')}`
 })
 
+const exportingPng = ref(false)
+
+function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+  ctx.lineTo(x + r, y + h)
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+  ctx.lineTo(x, y + r)
+  ctx.quadraticCurveTo(x, y, x + r, y)
+  ctx.closePath()
+}
+
+async function exportSummaryPng() {
+  if (typeof window === 'undefined' || !data.value || exportingPng.value) return
+  exportingPng.value = true
+  try {
+    const W = 1200
+    const H = 630
+    const canvas = document.createElement('canvas')
+    canvas.width = W
+    canvas.height = H
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // 1. Fond sombre + lueur radiale
+    const bgGrad = ctx.createLinearGradient(0, 0, W, H)
+    bgGrad.addColorStop(0, '#0b0d12')
+    bgGrad.addColorStop(1, '#121520')
+    ctx.fillStyle = bgGrad
+    ctx.fillRect(0, 0, W, H)
+
+    const glow = ctx.createRadialGradient(W * 0.2, 80, 20, W * 0.2, 80, 520)
+    glow.addColorStop(0, 'rgba(99, 144, 240, 0.22)')
+    glow.addColorStop(1, 'rgba(99, 144, 240, 0)')
+    ctx.fillStyle = glow
+    ctx.fillRect(0, 0, W, H)
+
+    // Cadre extérieur
+    drawRoundedRect(ctx, 24, 24, W - 48, H - 48, 22)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
+    ctx.lineWidth = 2
+    ctx.stroke()
+
+    // 2. En-tête MTG Stats + Badge type
+    ctx.fillStyle = '#8ab4ff'
+    ctx.font = '700 18px Inter, sans-serif'
+    ctx.fillText('MTG STATS · MARCHÉ SCELLÉ EUROPÉEN', 60, 74)
+
+    const typeLabel =
+      data.value.category === 'PRECON_DECK'
+        ? `DECK ${data.value.deckType || ''}`
+        : isBundle.value
+          ? 'BUNDLE'
+          : `${data.value.category === 'SINGLE_BOOSTER' ? 'BOOSTER' : 'BOÎTE'} ${data.value.type}`
+    const relStr = data.value.releaseDate
+      ? ` · Sorti en ${new Date(data.value.releaseDate).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`
+      : ''
+
+    ctx.fillStyle = '#9499ad'
+    ctx.font = '500 16px Inter, sans-serif'
+    ctx.fillText(`${typeLabel}${relStr}`, W - 60 - ctx.measureText(`${typeLabel}${relStr}`).width, 74)
+
+    // 3. Titre du produit
+    ctx.fillStyle = '#f3f4f8'
+    ctx.font = '800 38px Outfit, Inter, sans-serif'
+    const cleanTitle = data.value.name.length > 48 ? data.value.name.slice(0, 45) + '...' : data.value.name
+    ctx.fillText(cleanTitle, 60, 128)
+
+    // 4. Quatre cartes de statistiques
+    const statCards = [
+      {
+        label: 'PRIX ACTUEL',
+        value: last.value != null ? `${last.value} €` : '-',
+        color: '#f3f4f8'
+      },
+      {
+        label: 'EV ESTIMÉE',
+        value: lastEv.value != null ? `${lastEv.value} €` : 'N/A',
+        color: '#8ab4ff'
+      },
+      {
+        label: 'RATIO EV / PRIX',
+        value: evRatio.value != null ? `${evRatio.value} %` : 'N/A',
+        color: evRatio.value != null && evRatio.value >= 100 ? '#34d399' : '#e6e7ea'
+      },
+      {
+        label: 'ÉVOLUTION TOTALE',
+        value: total.value != null ? `${total.value > 0 ? '+' : ''}${total.value.toFixed(1).replace('.', ',')} %` : '-',
+        color: total.value != null ? (total.value >= 0 ? '#34d399' : '#f87171') : '#9499ad'
+      }
+    ]
+
+    const cardW = (W - 120 - 36) / 4
+    statCards.forEach((sc, idx) => {
+      const cx = 60 + idx * (cardW + 12)
+      const cy = 154
+      drawRoundedRect(ctx, cx, cy, cardW, 96, 14)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.035)'
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)'
+      ctx.lineWidth = 1
+      ctx.stroke()
+
+      ctx.fillStyle = '#9499ad'
+      ctx.font = '600 13px Inter, sans-serif'
+      ctx.fillText(sc.label, cx + 18, cy + 32)
+
+      ctx.fillStyle = sc.color
+      ctx.font = '800 30px Outfit, Inter, sans-serif'
+      ctx.fillText(sc.value, cx + 18, cy + 74)
+    })
+
+    // 5. Zone graphique d'évolution
+    const chartX = 60
+    const chartY = 276
+    const chartW = W - 120
+    const chartH = 265
+
+    drawRoundedRect(ctx, chartX, chartY, chartW, chartH, 16)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.02)'
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)'
+    ctx.stroke()
+
+    const pts = filteredHistory.value.filter((h) => h.price > 0)
+    if (pts.length >= 2) {
+      const prices = pts.map((p) => p.price)
+      const evs = pts.map((p) => p.ev).filter((v): v is number => v != null && v > 0)
+      const allVals = [...prices, ...evs]
+      const minV = Math.min(...allVals) * 0.92
+      const maxV = Math.max(...allVals) * 1.06
+      const range = Math.max(1, maxV - minV)
+
+      const padL = 70
+      const padR = 30
+      const padT = 28
+      const padB = 38
+      const plotW = chartW - padL - padR
+      const plotH = chartH - padT - padB
+
+      // Lignes de grille horizontales
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'
+      ctx.fillStyle = '#8b90a0'
+      ctx.font = '500 12px Inter, sans-serif'
+      for (let g = 0; g <= 3; g++) {
+        const gy = chartY + padT + (g / 3) * plotH
+        const gv = Math.round(maxV - (g / 3) * range)
+        ctx.beginPath()
+        ctx.moveTo(chartX + padL, gy)
+        ctx.lineTo(chartX + padL + plotW, gy)
+        ctx.stroke()
+        ctx.fillText(`${gv} €`, chartX + 16, gy + 4)
+      }
+
+      // Courbe de prix principale
+      const coords = pts.map((p, i) => ({
+        x: chartX + padL + (i / (pts.length - 1)) * plotW,
+        y: chartY + padT + plotH - ((p.price - minV) / range) * plotH,
+        month: p.month
+      }))
+
+      // Remplissage sous la courbe
+      ctx.beginPath()
+      coords.forEach((pt, i) => {
+        if (i === 0) ctx.moveTo(pt.x, pt.y)
+        else ctx.lineTo(pt.x, pt.y)
+      })
+      ctx.lineTo(coords[coords.length - 1].x, chartY + padT + plotH)
+      ctx.lineTo(coords[0].x, chartY + padT + plotH)
+      ctx.closePath()
+      const areaGrad = ctx.createLinearGradient(0, chartY + padT, 0, chartY + padT + plotH)
+      areaGrad.addColorStop(0, 'rgba(91, 141, 239, 0.32)')
+      areaGrad.addColorStop(1, 'rgba(91, 141, 239, 0.0)')
+      ctx.fillStyle = areaGrad
+      ctx.fill()
+
+      // Trait de la courbe
+      ctx.beginPath()
+      coords.forEach((pt, i) => {
+        if (i === 0) ctx.moveTo(pt.x, pt.y)
+        else ctx.lineTo(pt.x, pt.y)
+      })
+      ctx.strokeStyle = '#5b8def'
+      ctx.lineWidth = 3.5
+      ctx.stroke()
+
+      // Labels de dates (début, milieu, fin)
+      ctx.fillStyle = '#9499ad'
+      ctx.font = '500 12px Inter, sans-serif'
+      ctx.fillText(coords[0].month, coords[0].x, chartY + chartH - 12)
+      const midIdx = Math.floor(coords.length / 2)
+      if (coords.length >= 3) {
+        ctx.fillText(coords[midIdx].month, coords[midIdx].x - 20, chartY + chartH - 12)
+      }
+      ctx.fillText(coords[coords.length - 1].month, coords[coords.length - 1].x - 45, chartY + chartH - 12)
+    }
+
+    // 6. Pied de carte
+    ctx.fillStyle = '#9499ad'
+    ctx.font = '500 14px Inter, sans-serif'
+    ctx.fillText('Source : Cardmarket & Scryfall API · Généré sur MTG Stats', 60, H - 42)
+
+    const slug = data.value.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+    const link = document.createElement('a')
+    link.download = `mtg-stats-${slug}-${data.value.type.toLowerCase()}.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  } finally {
+    exportingPng.value = false
+  }
+}
+
 const reqUrl = useRequestURL()
 const config = useRuntimeConfig()
 const siteUrl = computed(() => reqUrl.origin || (config.public.siteUrl as string) || 'https://mtg-stats.aeroliths.fr')
@@ -464,6 +683,16 @@ useSeoMeta({
           <Papicon name="Pillar" :size="15" />
           <span>Comparer</span>
         </NuxtLink>
+        <button
+          type="button"
+          class="btn ghost"
+          :disabled="exportingPng"
+          title="Télécharger une carte récapitulative en image PNG (idéal pour Discord / réseaux)"
+          @click="exportSummaryPng"
+        >
+          <Papicon name="Camera" :size="15" />
+          <span>{{ exportingPng ? 'Génération...' : 'Exporter en PNG' }}</span>
+        </button>
       </div>
     </div>
   </section>
