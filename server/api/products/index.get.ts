@@ -106,6 +106,13 @@ export default defineEventHandler(async () => {
       currentEv = null
     }
 
+    // Mini-série chronologique (jusqu'aux 8 derniers relevés valides) pour les sparklines du catalogue
+    const sparkline = [...p.prices]
+      .filter((s) => Number(s.price) > 0)
+      .slice(0, 8)
+      .reverse()
+      .map((s) => Number(s.price))
+
     return {
       id: p.id,
       name: p.name,
@@ -122,7 +129,8 @@ export default defineEventHandler(async () => {
       previous,
       var1m: variation(current, previous),
       var3m: variation(current, p3),
-      var6m: variation(current, p6)
+      var6m: variation(current, p6),
+      sparkline
     }
   })
 

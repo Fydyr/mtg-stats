@@ -17,6 +17,7 @@ type Item = {
   var3m: number | null
   var6m: number | null
   evRatio?: number | null
+  sparkline?: number[]
 }
 
 const props = defineProps<{
@@ -206,6 +207,29 @@ const rows = computed(() => {
 function sortBy(k: keyof Item) {
   if (sortKey.value === k) sortDir.value = (sortDir.value * -1) as 1 | -1
   else { sortKey.value = k; sortDir.value = -1 }
+}
+
+function buildSparkline(points?: number[], w = 68, h = 24): { line: string; area: string; color: string } | null {
+  if (!points || points.length < 2) return null
+  const min = Math.min(...points)
+  const max = Math.max(...points)
+  const range = max - min
+  const padY = 3
+  const innerH = h - padY * 2
+
+  const coords = points.map((v, i) => {
+    const x = Math.round((i / (points.length - 1)) * w * 10) / 10
+    const y = range === 0 ? h / 2 : Math.round((padY + innerH - ((v - min) / range) * innerH) * 10) / 10
+    return { x, y }
+  })
+
+  const line = coords.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt.x},${pt.y}`).join(' ')
+  const area = `${line} L${w},${h} L0,${h} Z`
+  const first = points[0]
+  const last = points[points.length - 1]
+  const color = last > first ? '#34d399' : last < first ? '#f87171' : '#8ab4ff'
+
+  return { line, area, color }
 }
 
 const availableTypes = computed(() => {
@@ -521,6 +545,7 @@ onMounted(() => {
           <th class="num" style="width: 95px;" @click="sortBy('var6m')">
             6 mois <Papicon v-if="sortKey === 'var6m'" :name="sortDir === 1 ? 'ChevronUp' : 'ChevronDown'" :size="13" color="var(--accent-bright)" />
           </th>
+          <th style="width: 84px; text-align: center;">Courbe</th>
           <th style="width: 110px; text-align: center;">Cardmarket</th>
         </tr>
       </thead>
@@ -607,6 +632,27 @@ onMounted(() => {
           <td class="num">
             <span class="tag-var" :class="cls(r.var6m)">{{ pct(r.var6m) }}</span>
           </td>
+          <td style="text-align: center; padding: 6px 8px;">
+            <NuxtLink
+              v-if="buildSparkline(r.sparkline)"
+              :to="`/products/${r.id}`"
+              class="sparkline-link"
+              title="Voir le graphique complet"
+            >
+              <svg width="68" height="24" viewBox="0 0 68 24" class="sparkline-svg">
+                <path :d="buildSparkline(r.sparkline)!.area" :fill="buildSparkline(r.sparkline)!.color" fill-opacity="0.14" />
+                <path
+                  :d="buildSparkline(r.sparkline)!.line"
+                  fill="none"
+                  :stroke="buildSparkline(r.sparkline)!.color"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </NuxtLink>
+            <span v-else class="muted" style="font-size: 0.75rem;">—</span>
+          </td>
           <td style="text-align: center;">
             <a class="cm-link" :href="r.cardmarket" target="_blank" rel="noopener noreferrer" :title="`Voir ${r.name} sur Cardmarket`">
               <span>Cardmarket</span>
@@ -615,7 +661,7 @@ onMounted(() => {
           </td>
         </tr>
         <tr v-if="!rows.length">
-          <td colspan="13" class="muted" style="text-align:center; padding:40px;">Aucun résultat pour ces filtres</td>
+          <td colspan="14" class="muted" style="text-align:center; padding:40px;">Aucun résultat pour ces filtres</td>
         </tr>
       </tbody>
     </table>
@@ -675,6 +721,19 @@ onMounted(() => {
                 {{ r.category === 'PRECON_DECK' ? 'Prix deck' : r.category === 'SINGLE_BOOSTER' ? 'Prix booster' : isBundleItem(r) ? 'Prix bundle' : 'Prix boîte' }}
               </span>
               <span class="product-card-price">{{ eur(r.price) }}</span>
+            </div>
+            <div v-if="buildSparkline(r.sparkline, 64, 24)" style="display:flex; align-items:center;">
+              <svg width="64" height="24" viewBox="0 0 64 24" class="sparkline-svg">
+                <path :d="buildSparkline(r.sparkline, 64, 24)!.area" :fill="buildSparkline(r.sparkline, 64, 24)!.color" fill-opacity="0.14" />
+                <path
+                  :d="buildSparkline(r.sparkline, 64, 24)!.line"
+                  fill="none"
+                  :stroke="buildSparkline(r.sparkline, 64, 24)!.color"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
             </div>
             <div style="text-align:right;">
               <span style="font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; display:block;">1 mois</span>
@@ -747,6 +806,24 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.sparkline-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.sparkline-link:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sparkline-svg {
+  display: block;
+  overflow: visible;
+}
+
 .advanced-filters {
   display: flex;
   flex-direction: column;
