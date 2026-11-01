@@ -70,12 +70,43 @@ const DECK_TYPES = [
   { v: 'OTHER', l: 'Autres' }
 ]
 
-const currentYear = new Date().getFullYear()
-const standardCutoffYear = currentYear - 3
+// Calcul automatique de la date de début du Standard selon le calendrier officiel WotC :
+// - Jusqu'à janvier 2027 : depuis Wilds of Eldraine (septembre 2023)
+// - À partir de février 2027 (rotation par année civile) : les 2 années civiles précédentes + l'année en cours
+function getDynamicStandardMinDate(now = new Date()): Date {
+  const y = now.getFullYear()
+  const m = now.getMonth()
+  if (y < 2027 || (y === 2027 && m === 0)) {
+    return new Date('2023-09-01')
+  }
+  return new Date(`${y - 2}-01-01`)
+}
+
+// Liste blanche stricte des 19 extensions sur table officiellement légales en Standard :
+// 1. Réalité fracturée (Reality Fracture)
+// 2. Magic: The Gathering | Le Hobbit (The Hobbit)
+// 3. Magic: The Gathering | Marvel Super Heroes (Marvel Super Heroes)
+// 4. Les secrets de Strixhaven (Secrets of Strixhaven)
+// 5. Magic: The Gathering | Teenage Mutant Ninja Turtles (Teenage Mutant Ninja Turtles)
+// 6. Lorwyn éclipsé (Lorwyn Eclipsed)
+// 7. Magic: The Gathering | Avatar, le dernier maître de l'air (Avatar: The Last Airbender)
+// 8. Magic: The Gathering | Marvel's Spider-Man (Marvel's Spider-Man)
+// 9. Aux portes des Éternités (Edge of Eternities)
+// 10. Magic: The Gathering—FINAL FANTASY (Final Fantasy)
+// 11. Tarkir : la tempête des dragons (Tarkir: Dragonstorm)
+// 12. Aetherdrift
+// 13. Fondations de Magic: The Gathering (Foundations)
+// 14. Mornebrune : la Maison de l'horreur (Duskmourn: House of Horror)
+// 15. Bloomburrow
+// 16. Les hors-la-loi de Croisetonnerre (Outlaws of Thunder Junction)
+// 17. Meurtres au manoir Karlov (Murders at Karlov Manor)
+// 18. Les cavernes oubliées d'Ixalan (The Lost Caverns of Ixalan)
+// 19. Les Friches d'Eldraine (Wilds of Eldraine)
+const STANDARD_LEGAL_SETS_REGEX = /\b(?:reality\s+fracture|r[eé]alit[eé]\s+fractur[eé]e|the\s+hobbit|le\s+hobbit|marvel\s+super\s+heroes|secrets\s+of\s+strixhaven|secrets\s+de\s+strixhaven|teenage\s+mutant\s+ninja\s+turtles|ninja\s+turtles|tmnt|lorwyn\s+eclipsed|lorwyn\s+[eé]clips[eé]|avatar:\s*the\s+last\s+airbender|last\s+airbender|dernier\s+ma[iî]tre\s+de\s+l'air|avatar|spider-?man|edge\s+of\s+eternities|portes\s+des\s+[eé]ternit[eé]s|final\s+fantasy|tarkir:\s*dragonstorm|dragonstorm|temp[eê]te\s+des\s+dragons|aetherdrift|foundations|fondations|duskmourn|mornebrune|house\s+of\s+horror|bloomburrow|outlaws\s+of\s+thunder\s+junction|thunder\s+junction|croisetonnerre|murders\s+at\s+karlov\s+manor|karlov\s+manor|manoir\s+karlov|lost\s+caverns\s+of\s+ixalan|cavernes\s+oubli[eé]es\s+d'ixalan|wilds\s+of\s+eldraine|friches\s+d'eldraine)\b/i
 
 const ERAS = [
   { v: 'ALL', l: 'Toutes les ères', title: 'Toutes les extensions' },
-  { v: 'STANDARD', l: 'Standard', title: 'Format Standard (en cours & configuré)' },
+  { v: 'STANDARD', l: 'Standard', title: 'Format Standard (depuis Wilds of Eldraine)' },
   { v: 'PIONEER', l: 'Pioneer', title: 'Format Pioneer (depuis 2012)' },
   { v: 'MODERN', l: 'Modern', title: 'Format Modern (depuis 2003)' },
   { v: 'MASTERS', l: 'Masters & Horizons', title: 'Séries Masters, Horizons et Remastered' }
@@ -101,16 +132,21 @@ function matchesEra(item: Item, eraVal: string): boolean {
 
   const isSupplementalNonStandard =
     isMasters ||
-    /\b(?:cluedo|clue\s+edition|commander|jumpstart|secret\s+lair|unfinity|unsanctioned|unstable|unhinged|unglued|fallout|warhammer|doctor\s+who|assassin|lord\s+of\s+the\s+rings|tales\s+of\s+middle|planechase|archenemy|game\s+night|explorers\s+of\s+ixalan|anthology|from\s+the\s+vault|spellbook)\b/i.test(item.name)
+    /\b(?:cluedo|clue\s+edition|commander|jumpstart|secret\s+lair|unfinity|unsanctioned|unstable|unhinged|unglued|fallout|warhammer|doctor\s+who|assassin|lord\s+of\s+the\s+rings|tales\s+of\s+middle|jurassic|transformers|aftermath|planechase|archenemy|game\s+night|explorers\s+of\s+ixalan|anthology|from\s+the\s+vault|spellbook|theme\s+deck|collector'?s\s+edition|world\s+championship)\b/i.test(item.name)
 
-  // Détermination de la légalité Standard :
-  // 1. Si standardLegalUntil est renseigné (ex: configuré dans l'admin pour Foundations jusqu'en 2029)
-  // 2. Sinon, règle par défaut : sorties des 3 dernières années, hors sets supplémentaires/Modern/Éternels
-  const isCurrentlyStandard = item.standardLegalUntil
-    ? new Date() <= new Date(item.standardLegalUntil)
-    : !item.releaseDate
-      ? false
-      : (new Date(item.releaseDate).getFullYear() >= standardCutoffYear && !isSupplementalNonStandard)
+  // Détermination 100% dynamique de la légalité Standard :
+  // L'API /api/products résout automatiquement `standardLegalUntil` via Scryfall (/sets), What's in Standard
+  // et le calendrier officiel de rotation WotC (sans mise à jour manuelle requise).
+  const now = new Date()
+  const minStdDate = getDynamicStandardMinDate(now)
+  const isFoundations = /\b(?:foundations|fondations)\b/i.test(item.name) && now <= new Date('2029-12-31')
+  const isCurrentlyStandard = !isSupplementalNonStandard && Boolean(
+    item.standardLegalUntil
+      ? now <= new Date(item.standardLegalUntil)
+      : (item.releaseDate &&
+          (new Date(item.releaseDate) >= minStdDate || isFoundations) &&
+          STANDARD_LEGAL_SETS_REGEX.test(item.name))
+  )
 
   if (eraVal === 'STANDARD') return isCurrentlyStandard
 

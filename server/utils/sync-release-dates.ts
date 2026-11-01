@@ -1,4 +1,5 @@
 import { prisma } from './prisma'
+import { getDynamicStandardCache, resolveProductStandardLegalUntil } from './standard-legal'
 
 function norm(s: string): string {
   return s
@@ -110,12 +111,15 @@ export async function syncProductReleaseDates(): Promise<{
   }
   boxesSorted.sort((a, b) => b.normName.length - a.normName.length)
 
-  // 4. Tous les produits en base
-  const allProducts = await prisma.product.findMany({
-    select: { id: true, name: true, category: true, type: true, cardmarketId: true, releaseDate: true }
-  })
+  // 4. Tous les produits en base + cache Standard dynamique
+  const [allProducts, stdCache] = await Promise.all([
+    prisma.product.findMany({
+      select: { id: true, name: true, category: true, type: true, cardmarketId: true, releaseDate: true, standardLegalUntil: true }
+    }),
+    getDynamicStandardCache()
+  ])
 
-  const updatesToRun: { id: number; date: Date }[] = []
+  const updatesToRun: { id: number; date: Date; standardLegalUntil: Date | null }[] = []
   let discrepanciesFixed = 0
 
   for (const p of allProducts) {
@@ -208,13 +212,21 @@ export async function syncProductReleaseDates(): Promise<{
       }
     }
 
-    // Vérifier si une mise à jour est requise
-    if (officialDate) {
+    // Vérifier si une mise à jour de la date de sortie ou de la légalité Standard est requise
+    const finalDate = officialDate || p.releaseDate
+    if (finalDate) {
+      const computedStandardUntil = resolveProductStandardLegalUntil(
+        { name: p.name, releaseDate: finalDate, standardLegalUntil: null },
+        stdCache
+      )
       const isMissing = !p.releaseDate
-      const isDifferent = p.releaseDate && p.releaseDate.toISOString().slice(0, 10) !== officialDate.toISOString().slice(0, 10)
+      const isDifferent = officialDate != null && p.releaseDate != null && p.releaseDate.toISOString().slice(0, 10) !== officialDate.toISOString().slice(0, 10)
+      const prevStdStr = p.standardLegalUntil ? p.standardLegalUntil.toISOString().slice(0, 10) : null
+      const nextStdStr = computedStandardUntil ? computedStandardUntil.toISOString().slice(0, 10) : null
+      const isStandardDifferent = prevStdStr !== nextStdStr
 
-      if (isMissing || isDifferent) {
-        updatesToRun.push({ id: p.id, date: officialDate })
+      if (isMissing || isDifferent || isStandardDifferent) {
+        updatesToRun.push({ id: p.id, date: finalDate, standardLegalUntil: computedStandardUntil })
         if (isDifferent) discrepanciesFixed++
       }
     }
@@ -228,7 +240,7 @@ export async function syncProductReleaseDates(): Promise<{
       chunk.map((item) =>
         prisma.product.update({
           where: { id: item.id },
-          data: { releaseDate: item.date }
+          data: { releaseDate: item.date, standardLegalUntil: item.standardLegalUntil }
         })
       )
     )

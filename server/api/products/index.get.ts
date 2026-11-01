@@ -1,6 +1,7 @@
 import { cardmarketLink, shiftMonth, variation } from '../../utils/months'
 import { syncProductReleaseDates } from '../../utils/sync-release-dates'
 import { extractEditionName } from '../../utils/sync-ev'
+import { getDynamicStandardCache, resolveProductStandardLegalUntil } from '../../utils/standard-legal'
 
 let hasCheckedReleaseDates = false
 
@@ -21,11 +22,12 @@ export default defineEventHandler(async () => {
     }
   }
 
-  const [products, latest] = await Promise.all([
+  const [products, latest, stdCache] = await Promise.all([
     prisma.product.findMany({
       include: { prices: { orderBy: { month: 'desc' } } }
     }),
-    prisma.priceSnapshot.aggregate({ _max: { month: true } })
+    prisma.priceSnapshot.aggregate({ _max: { month: true } }),
+    getDynamicStandardCache()
   ])
 
   const month = latest._max.month
@@ -113,6 +115,8 @@ export default defineEventHandler(async () => {
       .reverse()
       .map((s) => Number(s.price))
 
+    const resolvedLegalUntil = resolveProductStandardLegalUntil(p, stdCache)
+
     return {
       id: p.id,
       name: p.name,
@@ -120,7 +124,7 @@ export default defineEventHandler(async () => {
       type: p.type,
       deckType: (p as any).deckType || null,
       releaseDate: p.releaseDate,
-      standardLegalUntil: p.standardLegalUntil ? p.standardLegalUntil.toISOString().slice(0, 10) : null,
+      standardLegalUntil: resolvedLegalUntil ? resolvedLegalUntil.toISOString().slice(0, 10) : null,
       stock: p.stock ?? null,
       cardmarket: cardmarketLink(p.name, p.type, p.cardmarketUrl, cat),
       imageUrl: p.imageUrl || null,
