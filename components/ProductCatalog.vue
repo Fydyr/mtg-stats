@@ -77,8 +77,7 @@ const ERAS = [
   { v: 'ALL', l: 'Toutes les ères', title: 'Toutes les extensions' },
   { v: 'STANDARD', l: 'Standard', title: 'Format Standard (en cours & configuré)' },
   { v: 'PIONEER', l: 'Pioneer', title: 'Format Pioneer (depuis 2012)' },
-  { v: 'MODERN', l: 'Modern', title: 'Format Modern (2003-2012)' },
-  { v: 'VINTAGE', l: 'Vintage', title: 'Format Vintage (< 2003)' },
+  { v: 'MODERN', l: 'Modern', title: 'Format Modern (depuis 2003)' },
   { v: 'MASTERS', l: 'Masters & Horizons', title: 'Séries Masters, Horizons et Remastered' }
 ] as const
 
@@ -118,9 +117,8 @@ function matchesEra(item: Item, eraVal: string): boolean {
   if (!item.releaseDate) return true
   const y = new Date(item.releaseDate).getFullYear()
 
-  if (eraVal === 'PIONEER') return y >= 2012 && !isCurrentlyStandard && !isMasters
-  if (eraVal === 'MODERN') return y >= 2003 && y < 2012 && !isMasters
-  if (eraVal === 'VINTAGE') return y < 2003
+  if (eraVal === 'PIONEER') return y >= 2012 && !isSupplementalNonStandard
+  if (eraVal === 'MODERN') return (y >= 2003 && !isSupplementalNonStandard) || /\b(?:modern\s+horizons|lord\s+of\s+the\s+rings|assassin's\s+creed)\b/i.test(item.name)
   return true
 }
 
