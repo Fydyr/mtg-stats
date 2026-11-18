@@ -7,6 +7,13 @@ type Body = {
     productId: number
     price: number | null
     ev?: number | null
+    previousMonth?: string | null
+    previousPrice?: number | null
+    historyUpdates?: {
+      month: string
+      price: number | null
+      ev?: number | null
+    }[]
     cardmarketUrl?: string
     type?: BoosterType
     releaseDate?: string | null
@@ -28,6 +35,7 @@ export default defineEventHandler(async (event) => {
   const month = body.month
 
   const extra: ReturnType<typeof prisma.product.update>[] = []
+  const historyOps: any[] = []
   const ops = body.prices.map((p) => {
     const productId = Number(p.productId)
     if (!Number.isInteger(productId)) {
@@ -65,6 +73,47 @@ export default defineEventHandler(async (event) => {
         }
       }))
     }
+
+    // Mise à jour directe du prix du mois précédent (si modifié dans la colonne "Mois préc.")
+    if (p.previousMonth && MONTH_RE.test(p.previousMonth) && p.previousMonth !== month && p.previousPrice !== undefined) {
+      if (p.previousPrice == null || (p.previousPrice as unknown) === '') {
+        historyOps.push(prisma.priceSnapshot.deleteMany({ where: { productId, month: p.previousMonth } }))
+      } else {
+        const prevPrice = Number(p.previousPrice)
+        if (Number.isFinite(prevPrice) && prevPrice >= 0) {
+          historyOps.push(
+            prisma.priceSnapshot.upsert({
+              where: { productId_month: { productId, month: p.previousMonth } },
+              update: { price: prevPrice },
+              create: { productId, month: p.previousMonth, price: prevPrice }
+            })
+          )
+        }
+      }
+    }
+
+    // Mises à jour détaillées de l'historique des mois précédents (volet d'historique par produit)
+    if (Array.isArray(p.historyUpdates)) {
+      for (const h of p.historyUpdates) {
+        if (!h?.month || !MONTH_RE.test(h.month) || h.month === month) continue
+        if (h.price == null || (h.price as unknown) === '') {
+          historyOps.push(prisma.priceSnapshot.deleteMany({ where: { productId, month: h.month } }))
+        } else {
+          const hp = Number(h.price)
+          if (Number.isFinite(hp) && hp >= 0) {
+            const hev = h.ev != null && !isNaN(Number(h.ev)) && Number(h.ev) >= 0 ? Number(h.ev) : null
+            historyOps.push(
+              prisma.priceSnapshot.upsert({
+                where: { productId_month: { productId, month: h.month } },
+                update: { price: hp, ...(h.ev !== undefined ? { ev: hev } : {}) },
+                create: { productId, month: h.month, price: hp, ev: hev }
+              })
+            )
+          }
+        }
+      }
+    }
+
     if (p.price == null || (p.price as unknown) === '') {
       return prisma.priceSnapshot.deleteMany({ where: { productId, month } })
     }
@@ -80,6 +129,6 @@ export default defineEventHandler(async (event) => {
     })
   })
 
-  await prisma.$transaction([...extra, ...ops])
+  await prisma.$transaction([...extra, ...historyOps, ...ops])
   return { ok: true, count: ops.length }
 })

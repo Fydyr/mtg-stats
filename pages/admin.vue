@@ -10,6 +10,8 @@ type Row = {
   price: number
   ev: number | null
   previous: number
+  previousMonth?: string
+  previousMonths?: { month: string; price: number; ev: number | null }[]
   cardmarketUrl: string
 }
 type Form = {
@@ -24,6 +26,7 @@ const { data: me, refresh: refreshMe } = await useFetch<{ admin: boolean }>('/ap
 
 const password = ref('')
 const month = ref(new Date().toISOString().slice(0, 7))
+const expandedHistoryIds = ref<number[]>([])
 const rows = ref<{
   id: number
   name: string
@@ -33,6 +36,11 @@ const rows = ref<{
   standardLegalUntil: string
   stockValue: string
   previous: number | null
+  previousMonth: string
+  previousValue: string
+  previousMonths: { month: string; priceValue: string; evValue: string }[]
+  newHistoryMonth: string
+  newHistoryPrice: string
   value: string
   evValue: string
   cardmarketUrl: string
@@ -182,23 +190,76 @@ async function load() {
   loading.value = true
   try {
     const list = await $fetch<Row[]>('/api/admin/prices', { query: { month: month.value } })
-    rows.value = list.map((r) => ({
-      id: r.id,
-      name: r.name,
-      category: r.category || 'BOOSTER_BOX',
-      type: r.type,
-      releaseDate: r.releaseDate || '',
-      standardLegalUntil: r.standardLegalUntil || '',
-      stockValue: r.stock != null ? String(r.stock) : '',
-      cardmarketUrl: r.cardmarketUrl,
-      previous: Number.isNaN(r.previous) ? null : r.previous,
-      value: Number.isNaN(r.price) ? '' : String(r.price),
-      evValue: r.ev != null && !Number.isNaN(r.ev) ? String(r.ev) : ''
-    }))
+    rows.value = list.map((r) => {
+      const prevNum = Number.isNaN(r.previous) ? null : r.previous
+      return {
+        id: r.id,
+        name: r.name,
+        category: r.category || 'BOOSTER_BOX',
+        type: r.type,
+        releaseDate: r.releaseDate || '',
+        standardLegalUntil: r.standardLegalUntil || '',
+        stockValue: r.stock != null ? String(r.stock) : '',
+        cardmarketUrl: r.cardmarketUrl,
+        previous: prevNum,
+        previousMonth: r.previousMonth || '',
+        previousValue: prevNum != null ? String(prevNum) : '',
+        previousMonths: (r.previousMonths || []).map((pm) => ({
+          month: pm.month,
+          priceValue: pm.price != null && !Number.isNaN(pm.price) ? String(pm.price) : '',
+          evValue: pm.ev != null && !Number.isNaN(pm.ev) ? String(pm.ev) : ''
+        })),
+        newHistoryMonth: '',
+        newHistoryPrice: '',
+        value: Number.isNaN(r.price) ? '' : String(r.price),
+        evValue: r.ev != null && !Number.isNaN(r.ev) ? String(r.ev) : ''
+      }
+    })
   } catch {
     notify('Chargement impossible', true)
   }
   loading.value = false
+}
+
+function toggleHistory(id: number) {
+  const idx = expandedHistoryIds.value.indexOf(id)
+  if (idx > -1) expandedHistoryIds.value.splice(idx, 1)
+  else expandedHistoryIds.value.push(id)
+}
+
+function onPreviousValueInput(r: (typeof rows.value)[number]) {
+  if (r.previousMonth && r.previousMonths.length) {
+    const entry = r.previousMonths.find((pm) => pm.month === r.previousMonth)
+    if (entry) entry.priceValue = r.previousValue
+  }
+}
+
+function onHistoryRowInput(r: (typeof rows.value)[number], pm: { month: string; priceValue: string }) {
+  if (pm.month === r.previousMonth) {
+    r.previousValue = pm.priceValue
+  }
+}
+
+function addHistoryMonthToRow(r: (typeof rows.value)[number]) {
+  const m = r.newHistoryMonth.trim()
+  const p = r.newHistoryPrice.trim()
+  if (!m || !/^\d{4}-\d{2}$/.test(m) || m >= month.value) {
+    notify('Veuillez choisir un mois antérieur au mois sélectionné', true)
+    return
+  }
+  const existing = r.previousMonths.find((pm) => pm.month === m)
+  if (existing) {
+    existing.priceValue = p
+  } else {
+    r.previousMonths.push({ month: m, priceValue: p, evValue: '' })
+    r.previousMonths.sort((a, b) => b.month.localeCompare(a.month))
+  }
+  if (!r.previousMonth || m >= r.previousMonth) {
+    r.previousMonth = m
+    r.previousValue = p
+  }
+  r.newHistoryMonth = ''
+  r.newHistoryPrice = ''
 }
 
 async function syncGoogleSheet() {
@@ -270,11 +331,19 @@ async function save() {
       standardLegalUntil: r.standardLegalUntil || null,
       stock: r.stockValue.trim() === '' ? null : Number(r.stockValue),
       cardmarketUrl: r.cardmarketUrl,
+      previousMonth: r.previousMonth || null,
+      previousPrice: r.previousValue.trim() === '' ? null : Number(r.previousValue.replace(',', '.')),
+      historyUpdates: r.previousMonths.map((pm) => ({
+        month: pm.month,
+        price: pm.priceValue.trim() === '' ? null : Number(pm.priceValue.replace(',', '.')),
+        ev: pm.evValue.trim() === '' ? null : Number(pm.evValue.replace(',', '.'))
+      })),
       price: r.value.trim() === '' ? null : Number(r.value.replace(',', '.')),
       ev: r.evValue.trim() === '' ? null : Number(r.evValue.replace(',', '.'))
     }))
     await $fetch('/api/admin/prices', { method: 'PUT', body: { month: month.value, prices } })
-    notify('Prix, EV, stock et modifications enregistrés avec succès')
+    notify('Prix (mois en cours & mois précédents), EV et stock enregistrés avec succès')
+    await load()
   } catch (e: any) {
     notify(e?.statusMessage || "Erreur lors de l'enregistrement", true)
   }
@@ -282,7 +351,8 @@ async function save() {
 
 function prefill() {
   rows.value.forEach((r) => {
-    if (!r.value && r.previous != null) r.value = String(r.previous)
+    const prev = r.previousValue.trim() !== '' ? r.previousValue : (r.previous != null ? String(r.previous) : '')
+    if (!r.value && prev) r.value = prev
   })
   notify('Prix pré-remplis avec le mois précédent')
 }
@@ -349,13 +419,16 @@ const searchUrl = (name: string, type: string) => {
   return `https://www.cardmarket.com/fr/Magic/Products/Search?searchString=${encodeURIComponent(`${name} Booster Box`).replace(/%20/g, '+')}`
 }
 
-const diff = (r: { previous: number | null; value: string }) => {
+const diff = (r: { previous: number | null; previousValue?: string; value: string }) => {
   const v = Number(r.value.replace(',', '.'))
-  if (!r.value || r.previous == null || !r.previous) return null
-  return ((v - r.previous) / r.previous) * 100
+  const prevRaw = r.previousValue !== undefined
+    ? (r.previousValue.trim() === '' ? NaN : Number(r.previousValue.replace(',', '.')))
+    : (r.previous ?? NaN)
+  if (!r.value || !Number.isFinite(prevRaw) || prevRaw <= 0) return null
+  return ((v - prevRaw) / prevRaw) * 100
 }
 
-const isAnomaly = (r: { previous: number | null; value: string }) => {
+const isAnomaly = (r: { previous: number | null; previousValue?: string; value: string }) => {
   const d = diff(r)
   return d != null && (d > 100 || d < -50)
 }
@@ -653,12 +726,12 @@ useSeoMeta({
           <col style="width: 86px;" />
           <col style="width: 114px;" />
           <col style="width: 110px;" />
-          <col style="width: 80px;" />
-          <col style="width: 78px;" />
+          <col style="width: 76px;" />
+          <col style="width: 96px;" />
           <col style="width: 82px;" />
           <col style="width: 82px;" />
           <col style="width: 70px;" />
-          <col style="width: 130px;" />
+          <col style="width: 126px;" />
           <col style="width: 36px;" />
         </colgroup>
         <thead>
@@ -668,7 +741,7 @@ useSeoMeta({
             <th>Date sortie</th>
             <th title="Fin de légalité en format Standard (ex: 2029 pour Foundations). Laisser vide pour la règle automatique standard (3 ans).">Fin Standard</th>
             <th class="num" title="Quantité disponible / stock d'articles">Stock</th>
-            <th class="num">Mois préc.</th>
+            <th class="num" title="Prix du mois précédent (modifiable en cas d'erreur de relevé)">Mois préc.</th>
             <th class="num">Prix (€)</th>
             <th class="num">EV (€)</th>
             <th class="num">Var.</th>
@@ -677,7 +750,8 @@ useSeoMeta({
           </tr>
         </thead>
         <tbody>
-          <tr v-for="r in filteredRows" :key="r.id">
+          <template v-for="r in filteredRows" :key="r.id">
+          <tr>
             <!-- Édition -->
             <td style="font-weight: 600; white-space: normal; word-break: break-word;" :title="r.name">
               <span
@@ -758,9 +832,30 @@ useSeoMeta({
               />
             </td>
 
-            <!-- Mois précédent -->
-            <td class="num muted" style="font-weight: 500; font-size: 0.78rem;">
-              {{ r.previous != null && !isNaN(r.previous) ? r.previous + ' €' : '-' }}
+            <!-- Mois précédent (modifiable + bouton historique complet) -->
+            <td class="num">
+              <div style="display: flex; align-items: center; gap: 3px; justify-content: flex-end;">
+                <button
+                  type="button"
+                  class="btn ghost"
+                  style="padding: 2px 4px; font-size: 0.68rem; border-color: rgba(255,255,255,0.08);"
+                  :style="expandedHistoryIds.includes(r.id) ? 'color: var(--accent-hover); border-color: var(--accent);' : 'color: var(--muted);'"
+                  :title="`Voir / modifier tous les mois précédents (${r.previousMonths.length} relevé(s))`"
+                  @click="toggleHistory(r.id)"
+                >
+                  <Papicon name="Clock" :size="11" />
+                </button>
+                <input
+                  v-model="r.previousValue"
+                  class="input admin-input"
+                  inputmode="decimal"
+                  placeholder="—"
+                  style="width: 50px; padding: 3px 5px; text-align: right; font-weight: 500; color: var(--muted); font-size: 0.78rem;"
+                  :title="r.previousMonth ? `Prix du mois précédent (${r.previousMonth}) — modifiable` : 'Prix du mois précédent — modifiable'"
+                  @input="onPreviousValueInput(r)"
+                />
+                <span style="font-size: 0.75rem; color: var(--muted); font-weight: 600;">€</span>
+              </div>
             </td>
 
             <!-- Prix du mois -->
@@ -843,6 +938,79 @@ useSeoMeta({
               </button>
             </td>
           </tr>
+
+          <!-- Sous-ligne repliable : édition de tous les mois précédents -->
+          <tr v-if="expandedHistoryIds.includes(r.id)" style="background: rgba(15, 19, 29, 0.75);">
+            <td colspan="11" style="padding: 10px 14px; border-bottom: 1px solid rgba(91, 141, 239, 0.25);">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 600; color: var(--accent-hover);">
+                  <Papicon name="Clock" :size="14" />
+                  <span>Historique des mois précédents — {{ r.name }}</span>
+                  <span style="font-weight: 400; color: var(--muted); font-size: 0.73rem;">(Videz un prix pour supprimer un relevé erroné, puis cliquez sur Enregistrer)</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input
+                    v-model="r.newHistoryMonth"
+                    type="month"
+                    class="input"
+                    style="padding: 2px 6px; font-size: 0.72rem; color-scheme: dark;"
+                    title="Mois à ajouter ou corriger"
+                  />
+                  <input
+                    v-model="r.newHistoryPrice"
+                    class="input admin-input"
+                    inputmode="decimal"
+                    placeholder="Prix €"
+                    style="width: 64px; padding: 3px 6px; font-size: 0.74rem; text-align: right;"
+                  />
+                  <button
+                    type="button"
+                    class="btn ghost"
+                    style="padding: 3px 8px; font-size: 0.72rem;"
+                    @click="addHistoryMonthToRow(r)"
+                  >
+                    + Ajouter ce mois
+                  </button>
+                </div>
+              </div>
+              <div v-if="r.previousMonths.length" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <div
+                  v-for="pm in r.previousMonths"
+                  :key="pm.month"
+                  style="display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);"
+                >
+                  <span style="font-size: 0.74rem; font-weight: 600; color: var(--text); min-width: 56px;">{{ pm.month }}</span>
+                  <div style="display: flex; align-items: center; gap: 2px;">
+                    <input
+                      v-model="pm.priceValue"
+                      class="input admin-input"
+                      inputmode="decimal"
+                      placeholder="Prix"
+                      style="width: 54px; padding: 2px 5px; text-align: right; font-size: 0.75rem; font-weight: 600;"
+                      title="Prix de ce mois (€)"
+                      @input="onHistoryRowInput(r, pm)"
+                    />
+                    <span style="font-size: 0.7rem; color: var(--muted);">€</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 2px;">
+                    <input
+                      v-model="pm.evValue"
+                      class="input admin-input"
+                      inputmode="decimal"
+                      placeholder="EV"
+                      style="width: 48px; padding: 2px 5px; text-align: right; font-size: 0.74rem; color: #7aa7ff;"
+                      title="EV de ce mois (€)"
+                    />
+                    <span style="font-size: 0.68rem; color: #7aa7ff;">EV</span>
+                  </div>
+                </div>
+              </div>
+              <div v-else style="font-size: 0.75rem; color: var(--muted);">
+                Aucun relevé antérieur enregistré pour ce produit.
+              </div>
+            </td>
+          </tr>
+          </template>
           <tr v-if="!filteredRows.length">
             <td colspan="11" class="muted" style="text-align: center; padding: 40px;">
               Aucune boîte trouvée. Cliquez sur <strong>"Synchroniser Cardmarket"</strong> ou <strong>"Synchroniser depuis le Google Sheet"</strong> !
